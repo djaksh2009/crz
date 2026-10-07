@@ -1,26 +1,886 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CRZ — DJ Studio Bengaluru</title>
+    <title>CRZ — DJ Studio Bengaluru</title>
 
-<meta
-    name="description"
-    content="CRZ — Practice. Record. Create."
->
+    <meta
+        name="description"
+        content="CRZ — Practice. Record. Create."
+    >
 
-<link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div id="app"></div>
+<div id="app">
 
-<div id="toast" class="toast"></div>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="logo">CRZ<span>.</span></div>
 
-<script src="script.js" defer></script>
+        <div class="nav-links">
+            <a href="#home">Home</a>
+            <a href="#studio">Studio</a>
+            <a href="#packages">Packages</a>
+            <a href="#booking">Book</a>
+        </div>
+
+        <button class="nav-login" onclick="openAuth()">
+            Login
+        </button>
+    </nav>
+
+
+    <!-- HERO -->
+    <section id="home" class="hero">
+
+        <div class="hero-content">
+
+            <div class="eyebrow">
+                BENGALURU'S DJ PRACTICE & RECORDING STUDIO
+            </div>
+
+            <h1>
+                PRACTICE.<br>
+                <span>RECORD.</span><br>
+                CREATE.
+            </h1>
+
+            <p>
+                A dedicated DJ studio built for practice sessions,
+                live recordings and multi-camera performance content.
+            </p>
+
+            <div class="hero-buttons">
+                <button class="primary-btn" onclick="scrollToBooking()">
+                    BOOK A SESSION
+                </button>
+
+                <button class="secondary-btn" onclick="scrollToSection('studio')">
+                    EXPLORE STUDIO
+                </button>
+            </div>
+
+        </div>
+
+        <div class="hero-visual">
+
+            <div class="camera camera-one">CAM 01</div>
+            <div class="camera camera-two">CAM 02</div>
+            <div class="camera camera-three">CAM 03</div>
+            <div class="camera camera-four">CAM 04</div>
+
+            <div class="dj-console">
+
+                <div class="cdj-row">
+
+                    <div class="cdj">
+                        <div class="cdj-screen"></div>
+                        <div class="cdj-wheel"></div>
+                    </div>
+
+                    <div class="mixer">
+                        <div class="mixer-screen"></div>
+                        <div class="faders">
+                            <i></i><i></i><i></i><i></i>
+                        </div>
+                    </div>
+
+                    <div class="cdj">
+                        <div class="cdj-screen"></div>
+                        <div class="cdj-wheel"></div>
+                    </div>
+
+                </div>
+
+                <div class="console-label">
+                    4 × CDJ PERFORMANCE SYSTEM
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- STATS -->
+    <section class="stats">
+
+        <div>
+            <strong>4</strong>
+            <span>CDJs</span>
+        </div>
+
+        <div>
+            <strong>4</strong>
+            <span>CAMERAS</span>
+        </div>
+
+        <div>
+            <strong>900</strong>
+            <span>SQ FT</span>
+        </div>
+
+        <div>
+            <strong>24/7</strong>
+            <span>ONLINE BOOKING</span>
+        </div>
+
+    </section>
+
+
+    <!-- STUDIO -->
+    <section id="studio" class="section">
+
+        <div class="section-heading">
+            <span>01 / THE STUDIO</span>
+            <h2>BUILT FOR<br><em>DJs.</em></h2>
+        </div>
+
+        <div class="studio-grid">
+
+            <div class="studio-card large">
+                <div class="card-number">01</div>
+
+                <h3>4-CDJ SETUP</h3>
+
+                <p>
+                    Full four-deck DJ setup with professional mixer
+                    and studio monitoring.
+                </p>
+            </div>
+
+            <div class="studio-card">
+                <div class="card-number">02</div>
+
+                <h3>MULTI-CAMERA</h3>
+
+                <p>
+                    Four camera positions — front, left, right and
+                    overhead.
+                </p>
+            </div>
+
+            <div class="studio-card">
+                <div class="card-number">03</div>
+
+                <h3>AUDIO RECORDING</h3>
+
+                <p>
+                    Clean direct mixer recording for high-quality
+                    performance audio.
+                </p>
+            </div>
+
+            <div class="studio-card">
+                <div class="card-number">04</div>
+
+                <h3>ACOUSTIC CONTROL</h3>
+
+                <p>
+                    Acoustic treatment and sound isolation designed
+                    specifically for the studio.
+                </p>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- PACKAGES -->
+    <section id="packages" class="section packages-section">
+
+        <div class="section-heading">
+            <span>02 / PACKAGES</span>
+            <h2>CHOOSE YOUR<br><em>SESSION.</em></h2>
+        </div>
+
+        <div class="package-grid">
+
+            <div class="package-card">
+
+                <div class="package-top">
+                    <span>01</span>
+                    <span>₹250 / HR</span>
+                </div>
+
+                <h3>Practice Only</h3>
+
+                <p>
+                    Full DJ setup for your own practice session.
+                </p>
+
+                <ul>
+                    <li>✓ 4 CDJs</li>
+                    <li>✓ Professional mixer</li>
+                    <li>✓ Studio monitors</li>
+                    <li>✓ No recording</li>
+                </ul>
+
+                <button onclick="startBooking('practice')">
+                    SELECT
+                </button>
+
+            </div>
+
+
+            <div class="package-card">
+
+                <div class="package-top">
+                    <span>02</span>
+                    <span>₹400 / HR</span>
+                </div>
+
+                <h3>Practice + Audio</h3>
+
+                <p>
+                    Practice while capturing a clean audio recording.
+                </p>
+
+                <ul>
+                    <li>✓ Full DJ setup</li>
+                    <li>✓ Clean mixer recording</li>
+                    <li>✓ High-quality audio</li>
+                    <li>✓ No video</li>
+                </ul>
+
+                <button onclick="startBooking('audio')">
+                    SELECT
+                </button>
+
+            </div>
+
+
+            <div class="package-card featured">
+
+                <div class="popular">
+                    MOST POPULAR
+                </div>
+
+                <div class="package-top">
+                    <span>03</span>
+                    <span>₹500 / HR</span>
+                </div>
+
+                <h3>Practice + Audio + Video</h3>
+
+                <p>
+                    Capture your complete performance using four
+                    camera angles.
+                </p>
+
+                <ul>
+                    <li>✓ Full DJ setup</li>
+                    <li>✓ Clean audio</li>
+                    <li>✓ 4-camera recording</li>
+                    <li>✓ Multi-view footage</li>
+                </ul>
+
+                <button onclick="startBooking('video')">
+                    SELECT
+                </button>
+
+            </div>
+
+
+            <div class="package-card">
+
+                <div class="package-top">
+                    <span>04</span>
+                    <span>₹600 / HR</span>
+                </div>
+
+                <h3>Raw Recording</h3>
+
+                <p>
+                    Receive your complete unedited audio and
+                    multi-camera footage.
+                </p>
+
+                <ul>
+                    <li>✓ Clean audio</li>
+                    <li>✓ 4-camera footage</li>
+                    <li>✓ Unedited files</li>
+                    <li>✓ Delivered digitally</li>
+                </ul>
+
+                <button onclick="startBooking('raw')">
+                    SELECT
+                </button>
+
+            </div>
+
+
+            <div class="package-card editing-card">
+
+                <div class="package-top">
+                    <span>05</span>
+                    <span>₹1,500–₹2,000 / HR</span>
+                </div>
+
+                <h3>Edited Recording</h3>
+
+                <p>
+                    Multi-camera performance edited by the CRZ
+                    production team.
+                </p>
+
+                <ul>
+                    <li>✓ Clean audio</li>
+                    <li>✓ Multi-camera footage</li>
+                    <li>✓ Professional edit</li>
+                    <li>✓ 7–10 day delivery</li>
+                </ul>
+
+                <button onclick="startBooking('edited')">
+                    SELECT
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- BOOKING -->
+    <section id="booking" class="booking-section">
+
+        <div class="booking-wrapper">
+
+            <div class="booking-info">
+
+                <span>03 / BOOKING</span>
+
+                <h2>
+                    RESERVE<br>
+                    YOUR <em>TIME.</em>
+                </h2>
+
+                <p>
+                    Select your session, choose an available time,
+                    and secure your studio slot.
+                </p>
+
+                <div class="booking-note">
+                    <strong>IMPORTANT</strong>
+                    <br>
+                    Slots are locked immediately after successful
+                    payment to prevent double bookings.
+                </div>
+
+            </div>
+
+
+            <div class="booking-panel">
+
+                <div class="booking-step">
+
+                    <label>SESSION</label>
+
+                    <select id="packageSelect">
+                        <option value="practice">
+                            Practice Only — ₹250/hr
+                        </option>
+
+                        <option value="audio">
+                            Practice + Audio — ₹400/hr
+                        </option>
+
+                        <option value="video">
+                            Practice + Audio + Video — ₹500/hr
+                        </option>
+
+                        <option value="raw">
+                            Raw Recording — ₹600/hr
+                        </option>
+
+                        <option value="edited">
+                            Edited Recording — ₹1,500–₹2,000/hr
+                        </option>
+                    </select>
+
+                </div>
+
+
+                <div class="booking-step">
+
+                    <label>DATE</label>
+
+                    <input
+                        type="date"
+                        id="bookingDate"
+                        onchange="loadSlots()"
+                    >
+
+                </div>
+
+
+                <div class="booking-step">
+
+                    <label>AVAILABLE TIMES</label>
+
+                    <div id="slots" class="slots">
+                        <div class="slot-placeholder">
+                            Select a date first.
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <button
+                    class="payment-btn"
+                    id="continuePayment"
+                    onclick="continueToPayment()"
+                    disabled
+                >
+                    CONTINUE TO PAYMENT
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- LOGIN MODAL -->
+    <div class="modal-overlay" id="authModal">
+
+        <div class="modal">
+
+            <button class="close" onclick="closeAuth()">×</button>
+
+            <div class="modal-logo">CRZ<span>.</span></div>
+
+            <h2>WELCOME BACK</h2>
+
+            <p>Login using your email or phone number.</p>
+
+            <div class="auth-tabs">
+
+                <button
+                    id="emailTab"
+                    class="active"
+                    onclick="showEmailLogin()"
+                >
+                    EMAIL
+                </button>
+
+                <button
+                    id="phoneTab"
+                    onclick="showPhoneLogin()"
+                >
+                    PHONE
+                </button>
+
+            </div>
+
+
+            <div id="emailLogin">
+
+                <input
+                    type="email"
+                    id="loginEmail"
+                    placeholder="Email address"
+                >
+
+                <input
+                    type="password"
+                    placeholder="Password"
+                >
+
+                <button onclick="fakeLogin()">
+                    LOGIN
+                </button>
+
+            </div>
+
+
+            <div id="phoneLogin" class="hidden">
+
+                <input
+                    type="tel"
+                    id="loginPhone"
+                    placeholder="+91 XXXXX XXXXX"
+                >
+
+                <input
+                    type="password"
+                    placeholder="Password"
+                >
+
+                <button onclick="fakeLogin()">
+                    LOGIN
+                </button>
+
+            </div>
+
+            <p class="signup-text">
+                Don't have an account?
+                <a href="#" onclick="showSignup()">Create one</a>
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- PAYMENT MODAL -->
+    <div class="modal-overlay" id="paymentModal">
+
+        <div class="modal payment-modal">
+
+            <button class="close" onclick="closePayment()">×</button>
+
+            <span>CRZ / SECURE CHECKOUT</span>
+
+            <h2>COMPLETE PAYMENT</h2>
+
+            <div id="paymentSummary"></div>
+
+            <div class="payment-methods">
+
+                <button onclick="selectPaymentMethod(this)">
+                    UPI
+                </button>
+
+                <button onclick="selectPaymentMethod(this)">
+                    CARD
+                </button>
+
+                <button onclick="selectPaymentMethod(this)">
+                    NET BANKING
+                </button>
+
+                <button onclick="selectPaymentMethod(this)">
+                    BHIM
+                </button>
+
+            </div>
+
+            <button
+                class="payment-confirm"
+                onclick="simulatePayment()"
+            >
+                PAY NOW
+            </button>
+
+            <small>
+                Demo mode — Razorpay will be connected to the
+                production version.
+            </small>
+
+        </div>
+
+    </div>
+
+
+    <!-- ADMIN MODAL -->
+    <div class="modal-overlay" id="adminModal">
+
+        <div class="modal admin-login">
+
+            <div class="modal-logo">CRZ<span>.</span></div>
+
+            <h2>ADMIN</h2>
+
+            <p>Authorized access only.</p>
+
+            <input
+                type="email"
+                id="adminEmail"
+                placeholder="Admin email"
+            >
+
+            <input
+                type="password"
+                id="adminPassword"
+                placeholder="Password"
+            >
+
+            <button onclick="adminLogin()">
+                ACCESS DASHBOARD
+            </button>
+
+            <div id="adminError"></div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ADMIN DASHBOARD -->
+    <section id="adminDashboard" class="admin-dashboard hidden">
+
+        <div class="admin-nav">
+
+            <div class="logo">
+                CRZ<span>.</span>
+            </div>
+
+            <div>
+                ADMIN CONTROL CENTER
+            </div>
+
+            <button onclick="logoutAdmin()">
+                LOGOUT
+            </button>
+
+        </div>
+
+
+        <div class="admin-content">
+
+            <div class="admin-header">
+
+                <div>
+                    <span>CONTROL CENTER</span>
+                    <h1>Dashboard</h1>
+                </div>
+
+                <div class="admin-date" id="adminDate"></div>
+
+            </div>
+
+
+            <!-- STATS -->
+
+            <div class="admin-stats">
+
+                <div class="admin-stat">
+                    <span>Today's Bookings</span>
+                    <strong id="todayBookings">0</strong>
+                </div>
+
+                <div class="admin-stat">
+                    <span>Upcoming</span>
+                    <strong id="upcomingBookings">0</strong>
+                </div>
+
+                <div class="admin-stat">
+                    <span>Completed</span>
+                    <strong id="completedBookings">0</strong>
+                </div>
+
+                <div class="admin-stat">
+                    <span>Revenue</span>
+                    <strong id="totalRevenue">₹0</strong>
+                </div>
+
+            </div>
+
+
+            <!-- ADMIN GRID -->
+
+            <div class="admin-grid">
+
+
+                <!-- BOOKINGS -->
+
+                <div class="admin-card wide">
+
+                    <div class="admin-card-heading">
+
+                        <div>
+                            <span>BOOKINGS</span>
+                            <h2>Upcoming Sessions</h2>
+                        </div>
+
+                        <select id="bookingFilter" onchange="renderAdminBookings()">
+                            <option value="all">All</option>
+                            <option value="upcoming">Upcoming</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+
+                    </div>
+
+                    <div id="adminBookings"></div>
+
+                </div>
+
+
+                <!-- AVAILABILITY -->
+
+                <div class="admin-card">
+
+                    <span>AVAILABILITY</span>
+
+                    <h2>Block Time</h2>
+
+                    <p>
+                        Block a slot for maintenance, private use,
+                        service or any other reason.
+                    </p>
+
+                    <input
+                        type="date"
+                        id="blockDate"
+                    >
+
+                    <select id="blockStart">
+                        <option value="09:00">09:00 AM</option>
+                        <option value="10:00">10:00 AM</option>
+                        <option value="11:00">11:00 AM</option>
+                        <option value="12:00">12:00 PM</option>
+                        <option value="13:00">01:00 PM</option>
+                        <option value="14:00">02:00 PM</option>
+                        <option value="15:00">03:00 PM</option>
+                        <option value="16:00">04:00 PM</option>
+                        <option value="17:00">05:00 PM</option>
+                        <option value="18:00">06:00 PM</option>
+                        <option value="19:00">07:00 PM</option>
+                        <option value="20:00">08:00 PM</option>
+                    </select>
+
+                    <select id="blockEnd">
+                        <option value="10:00">10:00 AM</option>
+                        <option value="11:00">11:00 AM</option>
+                        <option value="12:00">12:00 PM</option>
+                        <option value="13:00">01:00 PM</option>
+                        <option value="14:00">02:00 PM</option>
+                        <option value="15:00">03:00 PM</option>
+                        <option value="16:00">04:00 PM</option>
+                        <option value="17:00">05:00 PM</option>
+                        <option value="18:00">06:00 PM</option>
+                        <option value="19:00">07:00 PM</option>
+                        <option value="20:00">08:00 PM</option>
+                        <option value="21:00">09:00 PM</option>
+                    </select>
+
+                    <input
+                        type="text"
+                        id="blockReason"
+                        placeholder="Reason — e.g. Personal use"
+                    >
+
+                    <button
+                        class="admin-action"
+                        onclick="blockTime()"
+                    >
+                        BLOCK TIME
+                    </button>
+
+                </div>
+
+
+                <!-- BLOCKED SLOTS -->
+
+                <div class="admin-card">
+
+                    <span>AVAILABILITY</span>
+
+                    <h2>Blocked Slots</h2>
+
+                    <div id="blockedSlots"></div>
+
+                </div>
+
+
+                <!-- REFUNDS -->
+
+                <div class="admin-card">
+
+                    <span>PAYMENTS</span>
+
+                    <h2>Refunds</h2>
+
+                    <div class="refund-status">
+
+                        <div>
+                            <span>Initiated</span>
+                            <strong id="refundInitiated">0</strong>
+                        </div>
+
+                        <div>
+                            <span>Completed</span>
+                            <strong id="refundCompleted">0</strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- NOTIFICATIONS -->
+
+                <div class="admin-card">
+
+                    <span>SYSTEM</span>
+
+                    <h2>Notification Status</h2>
+
+                    <div class="notification-status">
+
+                        <div>
+                            <span>EMAIL</span>
+                            <strong class="online">● READY</strong>
+                        </div>
+
+                        <div>
+                            <span>SMS</span>
+                            <strong class="online">● READY</strong>
+                        </div>
+
+                    </div>
+
+                    <small>
+                        Production email/SMS providers will be
+                        connected through the backend.
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- FOOTER -->
+
+    <footer>
+
+        <div class="footer-logo">
+            CRZ<span>.</span>
+        </div>
+
+        <p>
+            PRACTICE. RECORD. CREATE.
+        </p>
+
+        <div class="footer-links">
+            <a href="#home">Home</a>
+            <a href="#studio">Studio</a>
+            <a href="#packages">Packages</a>
+            <a href="#booking">Book</a>
+        </div>
+
+        <small>
+            © 2026 CRZ DJ Studio Bengaluru
+        </small>
+
+    </footer>
+
+</div>
+
+<script src="script.js"></script>
 
 </body>
 </html>
