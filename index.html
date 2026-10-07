@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -12,50 +14,78 @@
 
     <meta
         name="description"
-        content="CRZ — Practice. Record. Create."
+        content="CRZ — Practice. Record. Create. Bengaluru DJ studio."
     >
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin
-    >
 
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
         rel="stylesheet"
     >
 
-    <link rel="stylesheet" href="style.css">
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
 </head>
+
 
 <body>
 
+
+<!-- =====================================================
+     BACKGROUND
+===================================================== -->
+
 <div class="noise"></div>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
 <div class="grid-bg"></div>
 
-<div class="orb orb1"></div>
-<div class="orb orb2"></div>
 
-
-<!-- =========================
+<!-- =====================================================
      NAVBAR
-========================= -->
+===================================================== -->
 
 <header class="navbar">
 
-    <a href="#home" class="logo">
+    <a
+        href="#home"
+        class="logo"
+    >
         CRZ<span>.</span>
     </a>
 
+
     <nav>
-        <a href="#studio">Studio</a>
-        <a href="#services">Services</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#music">Music</a>
-        <a href="#book">Book</a>
+
+        <a href="#studio">
+            Studio
+        </a>
+
+        <a href="#services">
+            Services
+        </a>
+
+        <a href="#music">
+            Music
+        </a>
+
+        <a href="#pricing">
+            Pricing
+        </a>
+
+        <a href="#book">
+            Book
+        </a>
+
     </nav>
+
 
     <button
         class="nav-button"
@@ -67,28 +97,42 @@
 </header>
 
 
-<!-- =========================
+<!-- =====================================================
      HERO
-========================= -->
+===================================================== -->
 
-<section id="home" class="hero">
+<section
+    id="home"
+    class="hero"
+>
 
     <div class="hero-content">
 
         <div class="eyebrow">
-            <i></i>
+
+            <span class="status-dot"></span>
+
             BENGALURU'S DJ PRACTICE STUDIO
+
         </div>
 
+
         <h1>
+
             PLAY LOUD.<br>
+
             <span>CREATE LOUDER.</span>
+
         </h1>
 
-        <p>
-            A dedicated DJ environment built for practice,
-            recording and performance.
+
+        <p class="hero-description">
+
+            A dedicated DJ environment built for
+            practice, recording and performance.
+
         </p>
+
 
         <div class="hero-buttons">
 
@@ -96,34 +140,64 @@
                 class="primary-button"
                 onclick="scrollToBooking()"
             >
+
                 BOOK YOUR SESSION
-                <b>↗</b>
+
+                <span>↗</span>
+
             </button>
+
 
             <button
                 class="secondary-button"
                 onclick="document.querySelector('#studio').scrollIntoView({behavior:'smooth'})"
             >
+
                 EXPLORE CRZ
+
             </button>
 
         </div>
 
+
         <div class="hero-stats">
 
             <div>
-                <strong>4</strong>
-                <small>CDJs</small>
+
+                <strong>
+                    4
+                </strong>
+
+                <span>
+                    CDJs
+                </span>
+
             </div>
 
-            <div>
-                <strong>4</strong>
-                <small>CAMERAS</small>
-            </div>
 
             <div>
-                <strong>24/7</strong>
-                <small>CREATIVE ENERGY</small>
+
+                <strong>
+                    4
+                </strong>
+
+                <span>
+                    CAMERAS
+                </span>
+
+            </div>
+
+
+            <div>
+
+                <strong>
+                    24/7
+                </strong>
+
+                <span>
+                    CREATIVE ENERGY
+                </span>
+
             </div>
 
         </div>
@@ -131,63 +205,424 @@
     </div>
 
 
-    <!-- DJ VISUAL -->
+    <!-- =================================================
+         INTERACTIVE DJ CONTROLLER
+    ================================================= -->
 
     <div class="hero-visual">
 
-        <div class="glow"></div>
+        <div class="dj-console">
 
-        <div
-            class="deck"
-            id="djDeck"
-        >
 
-            <div class="deck-top">
+            <!-- LEFT DECK -->
 
-                <span>
-                    CRZ // LIVE
-                </span>
+            <div class="dj-deck">
 
-                <em>
-                    ● LIVE
-                </em>
+                <div class="deck-top">
 
-            </div>
+                    <span>
+                        CRZ // DECK A
+                    </span>
 
-            <div
-                class="waveform"
-                id="waveform"
-            ></div>
+                    <div class="deck-display">
 
-            <div class="deck-body">
+                        <span id="deckABpm">
+                            128.0
+                        </span>
 
-                <div class="jog"></div>
+                        <small>
+                            BPM
+                        </small>
 
-                <div class="mixer">
-
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
+                    </div>
 
                 </div>
 
-                <div class="jog right"></div>
+
+                <div class="deck-controls-top">
+
+                    <button
+                        class="deck-button cue-button"
+                    >
+                        CUE
+                    </button>
+
+                    <button
+                        class="deck-button sync-button"
+                    >
+                        SYNC
+                    </button>
+
+                    <span
+                        class="deck-time"
+                        id="deckATime"
+                    >
+                        00:00
+                    </span>
+
+                </div>
+
+
+                <div class="jog-area">
+
+                    <div
+                        class="jog-wheel"
+                        data-deck="A"
+                    >
+
+                        <div class="jog-ring"></div>
+
+                        <div class="jog-center">
+                            CRZ
+                        </div>
+
+                        <div class="jog-marker"></div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="deck-bottom">
+
+                    <div class="performance-pads">
+
+                        <button></button>
+                        <button></button>
+                        <button></button>
+                        <button></button>
+
+                        <button></button>
+                        <button></button>
+                        <button></button>
+                        <button></button>
+
+                    </div>
+
+
+                    <div class="pitch-control">
+
+                        <small>
+                            PITCH
+                        </small>
+
+                        <div class="pitch-track">
+
+                            <div class="pitch-knob"></div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    class="play-button"
+                    data-deck="A"
+                >
+                    ▶
+                </button>
 
             </div>
 
-            <div class="meters">
 
-                <i></i>
-                <i></i>
-                <i></i>
-                <i></i>
-                <i></i>
-                <i></i>
-                <i></i>
-                <i></i>
+            <!-- =================================================
+                 MIXER
+            ================================================= -->
+
+            <div class="dj-mixer">
+
+                <div class="mixer-header">
+
+                    <span>
+                        CRZ
+                    </span>
+
+                    <div class="mixer-lights">
+
+                        <i></i>
+                        <i></i>
+                        <i></i>
+
+                    </div>
+
+                    <span>
+                        LIVE
+                    </span>
+
+                </div>
+
+
+                <div class="mixer-channels">
+
+
+                    <!-- CHANNEL 1 -->
+
+                    <div class="channel">
+
+                        <div class="knob-row">
+
+                            <div
+                                class="knob"
+                                data-value="50"
+                            ></div>
+
+                            <div
+                                class="knob"
+                                data-value="50"
+                            ></div>
+
+                            <div
+                                class="knob"
+                                data-value="50"
+                            ></div>
+
+                        </div>
+
+
+                        <div class="channel-fader">
+
+                            <div class="fader-track">
+
+                                <div
+                                    class="fader-cap"
+                                ></div>
+
+                            </div>
+
+                        </div>
+
+                        <span>
+                            01
+                        </span>
+
+                    </div>
+
+
+                    <!-- MASTER -->
+
+                    <div class="master-channel">
+
+                        <div class="master-meter">
+
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+
+                        </div>
+
+
+                        <div class="master-knob"></div>
+
+                        <small>
+                            MASTER
+                        </small>
+
+                    </div>
+
+
+                    <!-- CHANNEL 2 -->
+
+                    <div class="channel">
+
+                        <div class="knob-row">
+
+                            <div
+                                class="knob"
+                                data-value="50"
+                            ></div>
+
+                            <div
+                                class="knob"
+                                data-value="50"
+                            ></div>
+
+                            <div
+                                class="knob"
+                                data-value="50"
+                            ></div>
+
+                        </div>
+
+
+                        <div class="channel-fader">
+
+                            <div class="fader-track">
+
+                                <div
+                                    class="fader-cap"
+                                ></div>
+
+                            </div>
+
+                        </div>
+
+                        <span>
+                            02
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- CROSSFADER -->
+
+                <div class="crossfader">
+
+                    <span>
+                        A
+                    </span>
+
+                    <div class="cross-track">
+
+                        <div class="cross-knob"></div>
+
+                    </div>
+
+                    <span>
+                        B
+                    </span>
+
+                </div>
 
             </div>
+
+
+            <!-- RIGHT DECK -->
+
+            <div class="dj-deck">
+
+                <div class="deck-top">
+
+                    <span>
+                        CRZ // DECK B
+                    </span>
+
+                    <div class="deck-display">
+
+                        <span id="deckBBpm">
+                            128.0
+                        </span>
+
+                        <small>
+                            BPM
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <div class="deck-controls-top">
+
+                    <button
+                        class="deck-button cue-button"
+                    >
+                        CUE
+                    </button>
+
+                    <button
+                        class="deck-button sync-button"
+                    >
+                        SYNC
+                    </button>
+
+                    <span
+                        class="deck-time"
+                        id="deckBTime"
+                    >
+                        00:00
+                    </span>
+
+                </div>
+
+
+                <div class="jog-area">
+
+                    <div
+                        class="jog-wheel"
+                        data-deck="B"
+                    >
+
+                        <div class="jog-ring"></div>
+
+                        <div class="jog-center">
+                            CRZ
+                        </div>
+
+                        <div class="jog-marker"></div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="deck-bottom">
+
+                    <div class="performance-pads">
+
+                        <button></button>
+                        <button></button>
+                        <button></button>
+                        <button></button>
+
+                        <button></button>
+                        <button></button>
+                        <button></button>
+                        <button></button>
+
+                    </div>
+
+
+                    <div class="pitch-control">
+
+                        <small>
+                            PITCH
+                        </small>
+
+                        <div class="pitch-track">
+
+                            <div class="pitch-knob"></div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    class="play-button"
+                    data-deck="B"
+                >
+                    ▶
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- WAVEFORM -->
+
+        <div class="dj-waveform">
+
+            <div
+                class="wave-bars"
+                id="waveBars"
+            ></div>
+
+            <div
+                class="wave-progress"
+                id="waveProgress"
+            ></div>
 
         </div>
 
@@ -196,53 +631,53 @@
 </section>
 
 
-<!-- =========================
+<!-- =====================================================
      MARQUEE
-========================= -->
+===================================================== -->
 
 <div class="marquee">
 
-    <div>
+    <div class="marquee-track">
 
         <span>DJ PRACTICE</span>
-        ✦
+        <i>✦</i>
 
         <span>LIVE RECORDING</span>
-        ✦
+        <i>✦</i>
 
         <span>MULTI-CAM VIDEO</span>
-        ✦
+        <i>✦</i>
 
         <span>CRZ BENGALURU</span>
-        ✦
+        <i>✦</i>
 
         <span>DJ PRACTICE</span>
-        ✦
+        <i>✦</i>
 
         <span>LIVE RECORDING</span>
-        ✦
+        <i>✦</i>
 
     </div>
 
 </div>
 
 
-<!-- =========================
+<!-- =====================================================
      STUDIO
-========================= -->
+===================================================== -->
 
 <section
     id="studio"
     class="section"
 >
 
-    <div class="heading">
+    <div class="section-heading">
 
         <div>
 
-            <label>
+            <span class="section-number">
                 01 / THE SPACE
-            </label>
+            </span>
 
             <h2>
                 BUILT FOR<br>
@@ -251,21 +686,30 @@
 
         </div>
 
+
         <p>
-            CRZ is designed around the DJ.
+
+            CRZ is designed around the DJ —
+            not around unnecessary distractions.
             Walk in, plug in, and play.
+
         </p>
 
     </div>
 
 
-    <div class="features">
+    <div class="feature-grid">
 
-        <article class="feature big">
 
-            <b>01</b>
+        <article class="feature-card large">
 
-            <strong>◉</strong>
+            <span class="feature-number">
+                01
+            </span>
+
+            <span class="feature-icon">
+                ◉
+            </span>
 
             <h3>
                 4-CDJ SETUP
@@ -279,11 +723,15 @@
         </article>
 
 
-        <article class="feature">
+        <article class="feature-card">
 
-            <b>02</b>
+            <span class="feature-number">
+                02
+            </span>
 
-            <strong>◈</strong>
+            <span class="feature-icon">
+                ◈
+            </span>
 
             <h3>
                 4 CAMERA ANGLES
@@ -297,11 +745,15 @@
         </article>
 
 
-        <article class="feature">
+        <article class="feature-card">
 
-            <b>03</b>
+            <span class="feature-number">
+                03
+            </span>
 
-            <strong>◌</strong>
+            <span class="feature-icon">
+                ◌
+            </span>
 
             <h3>
                 STUDIO AUDIO
@@ -315,11 +767,15 @@
         </article>
 
 
-        <article class="feature wide">
+        <article class="feature-card wide">
 
-            <b>04</b>
+            <span class="feature-number">
+                04
+            </span>
 
-            <strong>✦</strong>
+            <span class="feature-icon">
+                ✦
+            </span>
 
             <h3>
                 CONTROLLED LIGHTING
@@ -327,8 +783,8 @@
 
             <p>
                 Atmospheric lighting designed
-                to make your recordings look
-                as good as they sound.
+                to make recordings look as good
+                as they sound.
             </p>
 
         </article>
@@ -338,22 +794,22 @@
 </section>
 
 
-<!-- =========================
+<!-- =====================================================
      SERVICES
-========================= -->
+===================================================== -->
 
 <section
     id="services"
     class="section"
 >
 
-    <div class="heading">
+    <div class="section-heading">
 
         <div>
 
-            <label>
+            <span class="section-number">
                 02 / SERVICES
-            </label>
+            </span>
 
             <h2>
                 PICK YOUR<br>
@@ -365,120 +821,133 @@
     </div>
 
 
-    <div class="services">
+    <div class="service-list">
 
-        <article>
+
+        <article class="service-card">
 
             <div>
 
-                <small>01</small>
+                <span>
+                    01
+                </span>
 
-                <section>
+                <h3>
+                    PRACTICE
+                </h3>
 
-                    <h3>
-                        PRACTICE
-                    </h3>
-
-                    <p>
-                        Full 4-CDJ setup +
-                        mixer + monitors.
-                    </p>
-
-                </section>
+                <p>
+                    Full 4-CDJ setup + mixer + monitors.
+                </p>
 
             </div>
 
             <strong>
-                ₹250
-                <small>/hr</small>
+                ₹250<span>/hr</span>
             </strong>
 
         </article>
 
 
-        <article class="featured">
+        <article class="service-card featured">
 
             <div>
 
-                <small>02</small>
+                <span>
+                    02
+                </span>
 
-                <section>
+                <h3>
+                    PRACTICE + AUDIO
+                </h3>
 
-                    <h3>
-                        PRACTICE + AUDIO
-                    </h3>
-
-                    <p>
-                        Practice session with
-                        clean mixer audio recording.
-                    </p>
-
-                </section>
+                <p>
+                    Practice session with clean
+                    mixer audio recording.
+                </p>
 
             </div>
 
             <strong>
-                ₹400
-                <small>/hr</small>
+                ₹400<span>/hr</span>
             </strong>
 
         </article>
 
 
-        <article>
+        <article class="service-card">
 
             <div>
 
-                <small>03</small>
+                <span>
+                    03
+                </span>
 
-                <section>
+                <h3>
+                    PRACTICE + AUDIO + VIDEO
+                </h3>
 
-                    <h3>
-                        PRACTICE + AUDIO + VIDEO
-                    </h3>
-
-                    <p>
-                        Practice with audio and
-                        multi-view camera recording.
-                    </p>
-
-                </section>
+                <p>
+                    Practice with audio and
+                    multi-view camera recording.
+                </p>
 
             </div>
 
             <strong>
-                ₹500
-                <small>/hr</small>
+                ₹500<span>/hr</span>
             </strong>
 
         </article>
 
 
-        <article>
+        <article class="service-card">
 
             <div>
 
-                <small>04</small>
+                <span>
+                    04
+                </span>
 
-                <section>
+                <h3>
+                    RAW RECORDING
+                </h3>
 
-                    <h3>
-                        EDITED RECORDING
-                    </h3>
-
-                    <p>
-                        Multi-camera footage +
-                        clean audio + professionally
-                        edited final set.
-                    </p>
-
-                </section>
+                <p>
+                    Clean audio/video recording
+                    delivered without editing.
+                </p>
 
             </div>
 
             <strong>
-                ₹1,500
-                <small>–₹2,000/hr</small>
+                ₹600<span>/hr</span>
+            </strong>
+
+        </article>
+
+
+        <article class="service-card">
+
+            <div>
+
+                <span>
+                    05
+                </span>
+
+                <h3>
+                    EDITED RECORDING
+                </h3>
+
+                <p>
+                    Multi-camera footage + clean
+                    audio + professionally edited set.
+                </p>
+
+            </div>
+
+            <strong>
+                ₹1,500–₹2,000<span>/hr</span>
             </strong>
 
         </article>
@@ -488,22 +957,132 @@
 </section>
 
 
-<!-- =========================
+<!-- =====================================================
+     MUSIC
+===================================================== -->
+
+<section
+    id="music"
+    class="section music-section"
+>
+
+    <div class="section-heading">
+
+        <div>
+
+            <span class="section-number">
+                03 / CRZ RADIO
+            </span>
+
+            <h2>
+                PLAY THE<br>
+                <span>ENERGY.</span>
+            </h2>
+
+        </div>
+
+
+        <p>
+
+            Spotify and YouTube embeds keep the
+            CRZ atmosphere running while you explore
+            the studio.
+
+        </p>
+
+    </div>
+
+
+    <div class="music-grid">
+
+
+        <div class="music-player-card">
+
+            <div class="music-card-header">
+
+                <span>
+                    SPOTIFY
+                </span>
+
+                <span>
+                    CRZ PLAYLIST
+                </span>
+
+            </div>
+
+
+            <iframe
+                src="https://open.spotify.com/embed/playlist/2ZZDx55XPetbf1RMHSVReX"
+                width="100%"
+                height="380"
+                frameborder="0"
+                allowtransparency="true"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                loading="lazy"
+            ></iframe>
+
+        </div>
+
+
+        <div class="music-player-card">
+
+            <div class="music-card-header">
+
+                <span>
+                    YOUTUBE
+                </span>
+
+                <span>
+                    CRZ VIDEO
+                </span>
+
+            </div>
+
+
+            <div class="youtube-placeholder">
+
+                <div>
+
+                    <span class="youtube-icon">
+                        ▶
+                    </span>
+
+                    <h3>
+                        CRZ ON YOUTUBE
+                    </h3>
+
+                    <p>
+                        Add your CRZ YouTube playlist
+                        or performance video here.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
      PRICING
-========================= -->
+===================================================== -->
 
 <section
     id="pricing"
     class="section"
 >
 
-    <div class="pricing">
+    <div class="pricing-banner">
 
         <div>
 
-            <label>
+            <span class="section-number">
                 SIMPLE PRICING
-            </label>
+            </span>
 
             <h2>
                 YOU PLAY.<br>
@@ -512,230 +1091,230 @@
 
         </div>
 
-        <p>
-            ✦<br>
-            No complicated packages.<br>
-            Pick what you need.
-        </p>
+
+        <div class="pricing-note">
+
+            <div class="pulse-ring"></div>
+
+            <p>
+                No complicated packages.<br>
+                Pick what you need.
+            </p>
+
+        </div>
 
     </div>
 
 </section>
 
 
-<!-- =========================
-     MUSIC / SPOTIFY
-========================= -->
-
-<section
-    id="music"
-    class="music"
->
-
-    <div class="heading">
-
-        <div>
-
-            <label>
-                CRZ // SOUND SYSTEM
-            </label>
-
-            <h2>
-                NOW<br>
-                <span>PLAYING.</span>
-            </h2>
-
-        </div>
-
-        <div
-            class="vinyl"
-            id="vinyl"
-        >
-            <b>CRZ</b>
-        </div>
-
-    </div>
-
-
-    <div class="spotify">
-
-        <iframe
-            src="https://open.spotify.com/embed/playlist/2ZZDx55XPetbf1RMHSVReX?utm_source=generator"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-        ></iframe>
-
-    </div>
-
-
-    <p class="disclaimer">
-        Music featured here is embedded through Spotify
-        for entertainment and demonstration purposes.
-        All rights to third-party music belong to their
-        respective copyright holders. CRZ does not claim
-        ownership of third-party music.
-    </p>
-
-</section>
-
-
-<!-- =========================
+<!-- =====================================================
      BOOKING
-========================= -->
+===================================================== -->
 
 <section
     id="book"
-    class="booking"
+    class="booking-section"
 >
 
-    <div class="booking-wrap">
+    <div class="booking-wrapper">
+
 
         <div class="booking-info">
 
-            <label>
-                03 / RESERVE
-            </label>
+            <span class="section-number">
+                04 / RESERVE
+            </span>
+
 
             <h2>
                 BOOK<br>
                 <span>YOUR SESSION.</span>
             </h2>
 
+
             <p>
                 Select your date, time and service.
-                Your request is sent to CRZ for confirmation.
+                Available slots update automatically.
             </p>
 
-            <div class="note">
-                ✦ Payment is collected separately
-                after confirmation.
+
+            <div class="booking-note">
+
+                <span>
+                    ✦
+                </span>
+
+                Your booking request will be
+                checked before confirmation.
+
             </div>
 
         </div>
 
 
-        <div class="card">
+        <div class="booking-card">
 
-            <div class="row">
 
-                <label>
-                    NAME
+            <div class="booking-progress">
 
-                    <input
-                        id="bookingName"
-                        placeholder="Your name"
-                    >
+                <span class="active">
+                    01
+                </span>
 
-                </label>
+                <i></i>
+
+                <span>
+                    02
+                </span>
+
+                <i></i>
+
+                <span>
+                    03
+                </span>
 
             </div>
 
 
-            <div class="two">
+            <div class="form-group">
 
                 <label>
-                    EMAIL
+                    NAME
+                </label>
+
+                <input
+                    id="bookingName"
+                    type="text"
+                    placeholder="Your name"
+                    autocomplete="name"
+                >
+
+            </div>
+
+
+            <div class="form-row">
+
+                <div class="form-group">
+
+                    <label>
+                        EMAIL
+                    </label>
 
                     <input
                         id="bookingEmail"
                         type="email"
                         placeholder="you@email.com"
+                        autocomplete="email"
                     >
 
-                </label>
+                </div>
 
 
-                <label>
-                    PHONE
+                <div class="form-group">
+
+                    <label>
+                        PHONE
+                    </label>
 
                     <input
                         id="bookingPhone"
                         type="tel"
                         placeholder="+91"
+                        autocomplete="tel"
                     >
 
-                </label>
+                </div>
 
             </div>
 
 
-            <div class="two">
+            <div class="form-row">
 
-                <label>
-                    DATE
+                <div class="form-group">
+
+                    <label>
+                        DATE
+                    </label>
 
                     <input
                         id="bookingDate"
                         type="date"
                     >
 
-                </label>
+                </div>
 
 
-                <label>
-                    TIME
+                <div class="form-group">
 
-                    <select id="bookingTime"></select>
+                    <label>
+                        TIME
+                    </label>
 
-                </label>
+                    <select
+                        id="bookingTime"
+                    >
+
+                        <option value="">
+                            Select time
+                        </option>
+
+                    </select>
+
+                </div>
 
             </div>
 
 
-            <label>
+            <div class="form-group">
 
-                SERVICE
+                <label>
+                    SERVICE
+                </label>
 
-                <select id="bookingService">
+                <select
+                    id="bookingService"
+                >
 
                     <option value="">
                         Select service
                     </option>
 
-                    <option value="250">
-                        Practice — ₹250/hr
-                    </option>
-
-                    <option value="400">
-                        Practice + Audio — ₹400/hr
-                    </option>
-
-                    <option value="500">
-                        Practice + Audio + Video — ₹500/hr
-                    </option>
-
-                    <option value="1500">
-                        Edited Recording — ₹1,500/hr
-                    </option>
-
                 </select>
 
-            </label>
+            </div>
 
 
-            <div class="total">
+            <div class="booking-total">
 
                 <span>
                     TOTAL
                 </span>
 
-                <b id="bookingTotal">
+                <strong id="bookingTotal">
                     ₹0
-                </b>
+                </strong>
 
             </div>
 
 
             <button
-                class="checkout"
+                class="checkout-button"
                 onclick="createBooking()"
             >
-                REQUEST BOOKING ↗
+
+                REQUEST BOOKING
+
+                <span>
+                    ↗
+                </span>
+
             </button>
 
-            <small class="secure">
-                CRZ booking request · Email + SMS confirmation
-            </small>
+
+            <p class="secure-note">
+                🔒 CRZ booking system
+            </p>
 
         </div>
 
@@ -744,45 +1323,50 @@
 </section>
 
 
-<!-- =========================
-     TEST NOTIFICATION
-========================= -->
+<!-- =====================================================
+     NOW PLAYING
+===================================================== -->
 
-<section class="test">
+<div
+    class="now-playing"
+    id="nowPlaying"
+>
 
-    <div>
+    <div class="now-disc">
 
-        <label>
-            DEVELOPMENT
-        </label>
-
-        <h3>
-            TEST EMAIL / SMS
-        </h3>
-
-        <p>
-            Uses the CRZ backend notification endpoints.
-        </p>
+        <div class="disc-center">
+            CRZ
+        </div>
 
     </div>
 
-    <button
-        class="secondary-button"
-        onclick="sendTestNotification()"
-    >
-        SEND TEST
-    </button>
 
-</section>
+    <div>
+
+        <small>
+            NOW PLAYING
+        </small>
+
+        <strong id="nowPlayingTitle">
+            CRZ RADIO
+        </strong>
+
+        <span>
+            Spotify / YouTube
+        </span>
+
+    </div>
+
+</div>
 
 
-<!-- =========================
+<!-- =====================================================
      FOOTER
-========================= -->
+===================================================== -->
 
 <footer>
 
-    <div class="logo">
+    <div class="footer-logo">
         CRZ<span>.</span>
     </div>
 
@@ -790,16 +1374,16 @@
         PRACTICE. RECORD. CREATE.
     </p>
 
-    <p>
+    <div>
         BENGALURU · INDIA
-    </p>
+    </div>
 
 </footer>
 
 
-<!-- =========================
-     ADMIN BUTTON
-========================= -->
+<!-- =====================================================
+     ADMIN TRIGGER
+===================================================== -->
 
 <button
     class="admin-trigger"
@@ -809,9 +1393,9 @@
 </button>
 
 
-<!-- =========================
+<!-- =====================================================
      ADMIN LOGIN
-========================= -->
+===================================================== -->
 
 <div
     id="adminModal"
@@ -821,20 +1405,23 @@
     <div class="modal-box">
 
         <button
-            class="close"
+            class="close-modal"
             onclick="closeAdminLogin()"
         >
             ×
         </button>
 
-        <label>
+
+        <span class="section-number">
             CRZ // ADMIN
-        </label>
+        </span>
+
 
         <h2>
             ADMIN<br>
             <span>ACCESS.</span>
         </h2>
+
 
         <input
             id="adminEmail"
@@ -842,14 +1429,16 @@
             placeholder="Admin email"
         >
 
+
         <input
             id="adminPassword"
             type="password"
             placeholder="Password"
         >
 
+
         <button
-            class="checkout"
+            class="checkout-button"
             onclick="adminLogin()"
         >
             LOGIN
@@ -860,28 +1449,29 @@
 </div>
 
 
-<!-- =========================
+<!-- =====================================================
      ADMIN DASHBOARD
-========================= -->
+===================================================== -->
 
 <div
     id="dashboard"
     class="dashboard"
 >
 
-    <div class="dash-head">
+    <div class="dashboard-header">
 
         <div>
 
-            <label>
+            <span class="section-number">
                 CRZ // CONTROL
-            </label>
+            </span>
 
             <h2>
                 ADMIN DASHBOARD
             </h2>
 
         </div>
+
 
         <button
             class="secondary-button"
@@ -893,55 +1483,86 @@
     </div>
 
 
-    <div class="stats">
+    <div class="dashboard-stats">
 
         <div>
-            <small>TODAY</small>
-            <b id="todayCount">0</b>
+            <span>
+                TODAY
+            </span>
+
+            <strong id="todayCount">
+                0
+            </strong>
         </div>
 
-        <div>
-            <small>FUTURE</small>
-            <b id="futureCount">0</b>
-        </div>
 
         <div>
-            <small>COMPLETED</small>
-            <b id="completedCount">0</b>
+            <span>
+                FUTURE
+            </span>
+
+            <strong id="futureCount">
+                0
+            </strong>
         </div>
 
+
         <div>
-            <small>REVENUE</small>
-            <b id="revenue">₹0</b>
+            <span>
+                PENDING PAYMENT
+            </span>
+
+            <strong id="pendingPaymentCount">
+                0
+            </strong>
+        </div>
+
+
+        <div>
+            <span>
+                REVENUE
+            </span>
+
+            <strong id="revenue">
+                ₹0
+            </strong>
         </div>
 
     </div>
 
 
-    <div class="admin-grid">
+    <div class="admin-columns">
 
-        <div class="panel">
 
-            <div class="panel-title">
+        <!-- BOOKINGS -->
+
+        <div class="admin-panel">
+
+            <div class="admin-panel-title">
 
                 <h3>
                     BOOKINGS
                 </h3>
 
-                <button onclick="clearBookings()">
-                    CLEAR
-                </button>
-
             </div>
 
-            <div id="bookingList"></div>
+
+            <div id="bookingList">
+
+                <p class="empty">
+                    No bookings yet.
+                </p>
+
+            </div>
 
         </div>
 
 
-        <div class="panel">
+        <!-- BLOCK TIME -->
 
-            <div class="panel-title">
+        <div class="admin-panel">
+
+            <div class="admin-panel-title">
 
                 <h3>
                     BLOCK TIME
@@ -949,24 +1570,31 @@
 
             </div>
 
+
             <input
                 id="blockDate"
                 type="date"
             >
 
-            <select id="blockTime"></select>
+
+            <select
+                id="blockTime"
+            ></select>
+
 
             <input
                 id="blockReason"
                 placeholder="Reason"
             >
 
+
             <button
-                class="checkout"
+                class="checkout-button"
                 onclick="blockTime()"
             >
                 BLOCK SLOT
             </button>
+
 
             <div id="blockedList"></div>
 
@@ -977,12 +1605,8 @@
 </div>
 
 
-<!-- TOAST -->
-
-<div id="toast"></div>
-
-
 <script src="script.js"></script>
 
 </body>
+
 </html>
