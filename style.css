@@ -1,35 +1,17 @@
-/* =========================================================
-   CRZ — DJ STUDIO
-   Premium dark / blue visual system
-========================================================= */
-
-:root {
-    --black: #080808;
-    --black-2: #0d0d0d;
-    --card: #111111;
-    --card-2: #151515;
-    --white: #f1ece0;
-    --muted: #8b8b8b;
-    --blue: #0e2999;
-    --blue-bright: #1846ff;
-    --line: rgba(241, 236, 224, 0.11);
-    --line-blue: rgba(24, 70, 255, 0.45);
-
-    --font-main: "Inter", sans-serif;
-    --font-display: "Space Grotesk", sans-serif;
-
-    --radius: 18px;
-}
-
-
-/* =========================================================
-   RESET
-========================================================= */
-
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+}
+
+:root {
+    --bg: #080808;
+    --panel: #111111;
+    --panel-2: #151515;
+    --white: #f1ece0;
+    --muted: #8d8b86;
+    --line: rgba(241,236,224,.12);
+    --soft: rgba(241,236,224,.05);
 }
 
 html {
@@ -37,9 +19,9 @@ html {
 }
 
 body {
-    background: var(--black);
+    background: var(--bg);
     color: var(--white);
-    font-family: var(--font-main);
+    font-family: Inter, sans-serif;
     overflow-x: hidden;
 }
 
@@ -59,128 +41,95 @@ a {
 }
 
 
-/* =========================================================
+/* =====================================================
    BACKGROUND
-========================================================= */
-
-body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: -5;
-
-    background:
-        radial-gradient(
-            circle at 75% 15%,
-            rgba(14, 41, 153, 0.18),
-            transparent 30%
-        ),
-        radial-gradient(
-            circle at 10% 70%,
-            rgba(24, 70, 255, 0.08),
-            transparent 28%
-        );
-}
+===================================================== */
 
 .noise {
     position: fixed;
     inset: 0;
-    z-index: 9999;
     pointer-events: none;
-    opacity: 0.035;
-
+    opacity: .035;
+    z-index: 1000;
     background-image:
-        url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.45'/%3E%3C/svg%3E");
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
 }
 
 .grid-bg {
     position: fixed;
     inset: 0;
-    z-index: -10;
     pointer-events: none;
-
+    opacity: .13;
     background-image:
-        linear-gradient(
-            rgba(255,255,255,0.025) 1px,
-            transparent 1px
-        ),
-        linear-gradient(
-            90deg,
-            rgba(255,255,255,0.025) 1px,
-            transparent 1px
-        );
-
-    background-size: 80px 80px;
-
-    mask-image: linear-gradient(
-        to bottom,
-        black,
-        transparent 75%
-    );
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: linear-gradient(to bottom, black, transparent 80%);
 }
 
 .orb {
     position: fixed;
-    width: 450px;
-    height: 450px;
     border-radius: 50%;
-    filter: blur(130px);
+    filter: blur(100px);
     pointer-events: none;
-    z-index: -8;
-    opacity: 0.2;
+    opacity: .12;
 }
 
-.orb1 {
-    top: -200px;
+.orb-1 {
+    width: 400px;
+    height: 400px;
+    top: 10%;
+    left: -200px;
+    background: white;
+}
+
+.orb-2 {
+    width: 300px;
+    height: 300px;
+    top: 40%;
     right: -150px;
-    background: var(--blue);
+    background: #777;
 }
 
-.orb2 {
-    bottom: -250px;
-    left: -180px;
-    background: var(--blue-bright);
+.orb-3 {
+    width: 250px;
+    height: 250px;
+    bottom: 5%;
+    left: 35%;
+    background: #aaa;
 }
 
 
-/* =========================================================
-   NAVBAR
-========================================================= */
+/* =====================================================
+   NAV
+===================================================== */
 
 .navbar {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-
     height: 82px;
-
-    padding: 0 5vw;
-
     display: flex;
     align-items: center;
     justify-content: space-between;
-
-    background: rgba(8, 8, 8, 0.72);
-    backdrop-filter: blur(18px);
-
+    padding: 0 6vw;
     border-bottom: 1px solid var(--line);
-
-    z-index: 1000;
+    background: rgba(8,8,8,.72);
+    backdrop-filter: blur(20px);
+    z-index: 900;
 }
 
 .logo {
-    font-family: var(--font-display);
-    font-size: 28px;
+    font-family: "Space Grotesk";
     font-weight: 900;
-    letter-spacing: -1px;
+    font-size: 28px;
+    letter-spacing: -.08em;
 }
 
 .logo span,
-h1 span,
-h2 span {
-    color: var(--blue-bright);
+.footer-logo span {
+    opacity: .45;
 }
 
 .navbar nav {
@@ -189,415 +138,601 @@ h2 span {
 }
 
 .navbar nav a {
-    color: #aaa;
-    font-size: 13px;
+    font-size: 12px;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    transition: 0.25s;
+    letter-spacing: .12em;
+    color: #aaa;
+    transition: .25s;
 }
 
 .navbar nav a:hover {
-    color: var(--white);
-}
-
-.nav-button,
-.primary-button {
-    border: 0;
-    background: var(--white);
-    color: var(--black);
-
-    padding: 14px 20px;
-
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 1px;
-
-    transition:
-        transform 0.25s,
-        background 0.25s;
-}
-
-.nav-button:hover,
-.primary-button:hover {
-    transform: translateY(-2px);
-    background: var(--blue-bright);
     color: white;
 }
 
-
-/* =========================================================
-   HERO
-========================================================= */
-
-.hero {
-    min-height: 100vh;
-    padding: 150px 7vw 80px;
-
-    display: grid;
-    grid-template-columns: 1fr 0.9fr;
-    align-items: center;
-    gap: 50px;
-}
-
-.hero-content {
-    max-width: 760px;
-}
-
-.eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-
-    color: #aaa;
-
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-}
-
-.eyebrow i {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--blue-bright);
-
-    box-shadow:
-        0 0 15px var(--blue-bright);
-}
-
-.hero h1 {
-    margin-top: 22px;
-
-    font-family: var(--font-display);
-    font-size: clamp(58px, 8vw, 120px);
-    line-height: 0.87;
-    letter-spacing: -6px;
-    font-weight: 800;
-}
-
-.hero-content > p {
-    max-width: 500px;
-    margin-top: 30px;
-
-    color: #aaa;
-    font-size: 17px;
-    line-height: 1.7;
-}
-
-.hero-buttons {
-    display: flex;
-    gap: 12px;
-    margin-top: 34px;
-}
-
+.nav-button,
 .primary-button,
-.secondary-button {
-    min-height: 50px;
-    padding: 0 21px;
-
-    border: 1px solid var(--line);
-
-    font-size: 11px;
+.secondary-button,
+.checkout-button {
+    border: 0;
+    padding: 14px 20px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 1px;
-
-    transition: 0.25s;
 }
 
-.primary-button b {
-    margin-left: 10px;
+.nav-button,
+.primary-button,
+.checkout-button {
+    background: var(--white);
+    color: #080808;
 }
 
 .secondary-button {
     background: transparent;
     color: var(--white);
+    border: 1px solid var(--line);
 }
 
-.secondary-button:hover {
-    border-color: var(--blue-bright);
-    background: rgba(24,70,255,0.08);
+.primary-button:hover,
+.nav-button:hover,
+.checkout-button:hover {
+    transform: translateY(-2px);
+}
+
+
+/* =====================================================
+   HERO
+===================================================== */
+
+.hero {
+    min-height: 100vh;
+    padding: 150px 6vw 70px;
+    display: grid;
+    grid-template-columns: .8fr 1.2fr;
+    align-items: center;
+    gap: 50px;
+}
+
+.eyebrow,
+.section-number {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .18em;
+    color: #888;
+}
+
+.eyebrow {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 0 12px white;
+}
+
+.hero h1,
+.section h2,
+.booking-info h2 {
+    font-family: "Space Grotesk";
+    font-weight: 800;
+    letter-spacing: -.06em;
+    line-height: .9;
+}
+
+.hero h1 {
+    font-size: clamp(55px, 6vw, 95px);
+}
+
+.hero h1 span,
+.section h2 span,
+.booking-info h2 span {
+    color: transparent;
+    -webkit-text-stroke: 1px rgba(241,236,224,.55);
+}
+
+.hero-description {
+    max-width: 450px;
+    margin: 28px 0;
+    color: #999;
+    line-height: 1.7;
+}
+
+.hero-buttons {
+    display: flex;
+    gap: 10px;
 }
 
 .hero-stats {
     display: flex;
-    gap: 45px;
-    margin-top: 65px;
+    gap: 40px;
+    margin-top: 55px;
 }
 
 .hero-stats div {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-}
-
-.hero-stats strong {
-    font-family: var(--font-display);
-    font-size: 26px;
-}
-
-.hero-stats small {
-    color: #666;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-}
-
-
-/* =========================================================
-   DJ DECK VISUAL
-========================================================= */
-
-.hero-visual {
-    position: relative;
-    min-height: 540px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.glow {
-    position: absolute;
-    width: 380px;
-    height: 380px;
-    border-radius: 50%;
-
-    background: var(--blue);
-    filter: blur(130px);
-    opacity: 0.23;
-}
-
-.deck {
-    position: relative;
-    width: min(600px, 100%);
-    padding: 24px;
-
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 24px;
-
-    background:
-        linear-gradient(
-            145deg,
-            rgba(255,255,255,0.09),
-            rgba(255,255,255,0.025)
-        );
-
-    box-shadow:
-        0 40px 100px rgba(0,0,0,0.6),
-        inset 0 1px rgba(255,255,255,0.08);
-
-    transform: perspective(1000px) rotateY(-7deg) rotateX(4deg);
-
-    animation: deckFloat 5s ease-in-out infinite;
-}
-
-@keyframes deckFloat {
-    0%,100% {
-        transform:
-            perspective(1000px)
-            rotateY(-7deg)
-            rotateX(4deg)
-            translateY(0);
-    }
-
-    50% {
-        transform:
-            perspective(1000px)
-            rotateY(-7deg)
-            rotateX(4deg)
-            translateY(-10px);
-    }
-}
-
-.deck-top {
-    display: flex;
-    justify-content: space-between;
-
-    color: #777;
-
-    font-size: 10px;
-    letter-spacing: 1.5px;
-}
-
-.deck-top em {
-    color: var(--blue-bright);
-    font-style: normal;
-}
-
-.waveform {
-    height: 130px;
-    margin: 30px 0;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
     gap: 5px;
 }
 
-.waveform i {
-    display: block;
-    width: 4px;
-    height: var(--h);
-
-    border-radius: 20px;
-
-    background: var(--blue-bright);
-
-    opacity: 0.8;
-
-    animation:
-        waveformPulse
-        calc(0.55s + var(--delay))
-        ease-in-out infinite alternate;
+.hero-stats strong {
+    font-family: "Space Grotesk";
+    font-size: 28px;
 }
 
-@keyframes waveformPulse {
-    from {
-        transform: scaleY(0.35);
-        opacity: 0.35;
-    }
-
-    to {
-        transform: scaleY(1);
-        opacity: 1;
-    }
+.hero-stats span {
+    font-size: 8px;
+    letter-spacing: .14em;
+    color: #777;
 }
 
-.deck-body {
+
+/* =====================================================
+   DJ CONTROLLER
+===================================================== */
+
+.hero-visual {
+    width: 100%;
+    perspective: 1400px;
+}
+
+.dj-console {
+    display: grid;
+    grid-template-columns: 1fr .7fr 1fr;
+    gap: 6px;
+    transform: rotateX(7deg) rotateY(-2deg);
+    transition: .5s;
+    filter: drop-shadow(0 35px 50px rgba(0,0,0,.7));
+}
+
+.dj-console:hover {
+    transform: rotateX(3deg) rotateY(0deg) translateY(-6px);
+}
+
+.dj-deck,
+.dj-mixer {
+    background:
+        linear-gradient(145deg,#242424,#101010 45%,#080808);
+    border: 1px solid rgba(255,255,255,.14);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.08),
+        0 15px 30px rgba(0,0,0,.6);
+}
+
+.dj-deck {
+    min-height: 395px;
+    padding: 17px;
+    border-radius: 12px;
+    position: relative;
+}
+
+.dj-mixer {
+    min-height: 395px;
+    padding: 15px 10px;
+    border-radius: 7px;
+}
+
+.deck-top,
+.deck-controls-top {
     display: flex;
     align-items: center;
+}
+
+.deck-top {
     justify-content: space-between;
 }
 
-.jog {
-    width: 155px;
-    aspect-ratio: 1;
-    border-radius: 50%;
-
-    background:
-        repeating-radial-gradient(
-            circle,
-            #090909 0 3px,
-            #171717 4px 6px
-        );
-
-    border: 8px solid #080808;
-
-    box-shadow:
-        0 0 0 2px #222,
-        inset 0 0 20px #000;
-
-    animation: spin 4s linear infinite;
+.deck-top > span {
+    font-size: 8px;
+    letter-spacing: .1em;
+    color: #777;
 }
 
-.jog::after {
-    content: "CRZ";
-    position: absolute;
-
-    display: grid;
-    place-items: center;
-
-    width: 50px;
-    height: 50px;
-
-    border-radius: 50%;
-
-    background: var(--blue);
-
-    font-size: 10px;
-    font-weight: 900;
+.deck-display {
+    display: flex;
+    gap: 4px;
+    align-items: baseline;
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
+.deck-display span {
+    font-family: monospace;
+    font-size: 13px;
 }
 
-.mixer {
-    width: 120px;
+.deck-display small {
+    font-size: 6px;
+    color: #666;
+}
 
+.deck-controls-top {
+    gap: 6px;
+    margin-top: 15px;
+}
+
+.deck-button {
+    background: #171717;
+    border: 1px solid #333;
+    color: #aaa;
+    padding: 5px 8px;
+    border-radius: 3px;
+    font-size: 7px;
+}
+
+.deck-button.active,
+.deck-button:hover {
+    background: #eee;
+    color: #080808;
+}
+
+.deck-time {
+    margin-left: auto;
+    font-family: monospace;
+    font-size: 8px;
+    color: #555;
+}
+
+.jog-area {
     display: flex;
     justify-content: center;
-    gap: 12px;
+    margin: 17px 0;
 }
 
-.mixer i {
+.jog-wheel {
+    width: 178px;
+    height: 178px;
+    border-radius: 50%;
+    position: relative;
+    cursor: grab;
+    background:
+        radial-gradient(circle,
+        #252525 0 28%,
+        #101010 29% 45%,
+        #1e1e1e 46% 61%,
+        #090909 62%);
+    border: 5px solid #080808;
+    box-shadow:
+        inset 0 0 0 2px #333,
+        inset 0 0 0 9px #111,
+        0 12px 25px rgba(0,0,0,.7);
+}
+
+.jog-wheel:active {
+    cursor: grabbing;
+}
+
+.jog-ring {
+    position: absolute;
+    inset: 9px;
+    border-radius: 50%;
+    border: 1px dashed rgba(255,255,255,.16);
+}
+
+.jog-center {
+    position: absolute;
+    inset: 42px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%,#444,#111);
+    border: 2px solid #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Space Grotesk";
+    font-weight: 800;
+    font-size: 11px;
+}
+
+.jog-marker {
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    width: 3px;
+    height: 13px;
+    background: white;
+    transform: translateX(-50%);
+}
+
+.deck-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+}
+
+.performance-pads {
+    display: grid;
+    grid-template-columns: repeat(4,23px);
+    gap: 5px;
+}
+
+.performance-pads button {
+    width: 23px;
+    height: 18px;
+    background: #191919;
+    border: 1px solid #555;
+    border-radius: 3px;
+    transition: .1s;
+}
+
+.performance-pads button.active,
+.performance-pads button:hover {
+    background: #eee;
+    box-shadow: 0 0 15px rgba(255,255,255,.35);
+}
+
+.pitch-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pitch-control small {
+    font-size: 6px;
+    color: #555;
+}
+
+.pitch-track {
     width: 7px;
-    height: 100px;
+    height: 65px;
+    background: #070707;
+    border: 1px solid #444;
+    position: relative;
+}
 
-    border-radius: 10px;
+.pitch-knob {
+    width: 15px;
+    height: 8px;
+    background: #999;
+    position: absolute;
+    left: 50%;
+    top: 30%;
+    transform: translateX(-50%);
+    cursor: grab;
+}
 
-    background: linear-gradient(
-        to top,
-        #222 0 30%,
-        var(--blue-bright) 30% 45%,
-        #222 45%
+.play-button {
+    position: absolute;
+    bottom: 17px;
+    left: 17px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid #444;
+    background: #161616;
+    color: white;
+}
+
+.play-button.playing {
+    box-shadow: 0 0 25px rgba(255,255,255,.25);
+}
+
+
+/* =====================================================
+   MIXER
+===================================================== */
+
+.mixer-header {
+    display: flex;
+    justify-content: space-between;
+    color: #666;
+    font: 8px monospace;
+}
+
+.mixer-lights {
+    display: flex;
+    gap: 3px;
+}
+
+.mixer-lights i {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #777;
+}
+
+.mixer-channels {
+    height: 285px;
+    display: grid;
+    grid-template-columns: 1fr .45fr 1fr;
+    gap: 7px;
+    margin-top: 17px;
+}
+
+.channel {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+.knob-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.knob,
+.master-knob {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    position: relative;
+    background: radial-gradient(circle at 35% 30%,#555,#171717 60%,#080808);
+    border: 1px solid #555;
+    cursor: grab;
+}
+
+.knob::after,
+.master-knob::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    width: 2px;
+    height: 7px;
+    background: white;
+    transform: translateX(-50%);
+}
+
+.channel-fader {
+    margin-top: 15px;
+    height: 120px;
+}
+
+.fader-track {
+    height: 110px;
+    width: 7px;
+    position: relative;
+    background: repeating-linear-gradient(
+        to bottom,
+        #444 0 1px,
+        transparent 1px 9px
     );
 }
 
-.meters {
+.fader-cap {
+    position: absolute;
+    width: 18px;
+    height: 24px;
+    left: 50%;
+    top: 35%;
+    transform: translate(-50%,-50%);
+    background: #777;
+    border-radius: 3px;
+    cursor: grab;
+}
+
+.channel > span {
+    font-size: 7px;
+    color: #555;
+}
+
+.master-channel {
     display: flex;
-    gap: 4px;
-    margin-top: 20px;
+    align-items: center;
+    flex-direction: column;
 }
 
-.meters i {
+.master-meter {
+    height: 120px;
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+}
+
+.master-meter span {
+    width: 4px;
+    height: 15%;
+    background: #aaa;
+    transition: height .08s;
+}
+
+.master-knob {
+    margin-top: 17px;
+}
+
+.master-channel small {
+    font-size: 6px;
+    color: #555;
+    margin-top: 5px;
+}
+
+.crossfader {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    color: #666;
+    font-size: 7px;
+}
+
+.cross-track {
+    width: 100px;
+    height: 5px;
+    background: #070707;
+    position: relative;
+    border: 1px solid #444;
+}
+
+.cross-knob {
+    width: 18px;
+    height: 13px;
+    background: #999;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%,-50%);
+    cursor: grab;
+}
+
+
+/* =====================================================
+   WAVEFORM
+===================================================== */
+
+.dj-waveform {
+    position: relative;
+    height: 50px;
+    margin-top: 22px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+}
+
+.wave-bars {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    gap: 2px;
+}
+
+.wave-bars span {
     flex: 1;
-    height: 4px;
-
-    background: #222;
+    background: rgba(255,255,255,.35);
+    min-width: 2px;
+    transition: height .12s;
 }
 
-.meters i:nth-child(-n+5) {
-    background: var(--blue-bright);
-    animation: meter 0.8s infinite alternate;
-}
-
-@keyframes meter {
-    from {
-        opacity: 0.3;
-    }
-
-    to {
-        opacity: 1;
-    }
+.wave-progress {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0;
+    background: rgba(255,255,255,.06);
+    border-right: 1px solid white;
 }
 
 
-/* =========================================================
+/* =====================================================
    MARQUEE
-========================================================= */
+===================================================== */
 
 .marquee {
     overflow: hidden;
-
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
-
-    padding: 17px 0;
-
-    background: #0b0b0b;
+    padding: 16px 0;
 }
 
-.marquee > div {
+.marquee-track {
     width: max-content;
-
     display: flex;
+    gap: 25px;
     align-items: center;
-    gap: 35px;
-
-    color: #666;
-
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 2px;
-
     animation: marquee 25s linear infinite;
 }
 
 .marquee span {
-    color: #aaa;
+    font-family: "Space Grotesk";
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .15em;
+}
+
+.marquee i {
+    color: #777;
 }
 
 @keyframes marquee {
@@ -607,609 +742,523 @@ h2 span {
 }
 
 
-/* =========================================================
+/* =====================================================
    SECTIONS
-========================================================= */
+===================================================== */
 
 .section {
-    padding: 130px 7vw;
+    padding: 140px 7vw;
 }
 
-.heading {
+.section-heading {
     display: flex;
-    align-items: end;
     justify-content: space-between;
-
-    gap: 50px;
-
-    margin-bottom: 60px;
+    gap: 60px;
+    margin-bottom: 70px;
 }
 
-.heading label,
-.pricing label,
-.booking-info label,
-.test label,
-.modal-box label,
-.dash-head label {
-    color: var(--blue-bright);
-
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 2px;
+.section-heading h2,
+.booking-info h2 {
+    font-size: clamp(50px,6vw,85px);
+    margin-top: 18px;
 }
 
-.heading h2,
-.pricing h2,
-.booking-info h2,
-.modal-box h2 {
-    margin-top: 14px;
-
-    font-family: var(--font-display);
-    font-size: clamp(42px, 6vw, 82px);
-    line-height: 0.9;
-    letter-spacing: -4px;
-}
-
-.heading > p {
+.section-heading > p {
     max-width: 400px;
-
-    color: #777;
-
+    color: #888;
     line-height: 1.7;
+    align-self: end;
 }
 
 
-/* =========================================================
+/* =====================================================
    FEATURES
-========================================================= */
+===================================================== */
 
-.features {
+.feature-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 10px;
 }
 
-.feature {
-    position: relative;
-    min-height: 270px;
+.feature-card {
+    min-height: 260px;
     padding: 35px;
-
+    background: rgba(255,255,255,.035);
     border: 1px solid var(--line);
-    border-radius: var(--radius);
-
-    background: linear-gradient(
-        145deg,
-        rgba(255,255,255,0.045),
-        rgba(255,255,255,0.015)
-    );
-
-    overflow: hidden;
-
-    transition:
-        transform 0.3s,
-        border-color 0.3s;
+    position: relative;
+    transition: .3s;
 }
 
-.feature:hover {
+.feature-card:hover {
+    background: rgba(255,255,255,.065);
     transform: translateY(-5px);
-    border-color: var(--line-blue);
 }
 
-.feature.big {
-    min-height: 380px;
+.feature-card.large {
+    min-height: 360px;
 }
 
-.feature.wide {
-    min-height: 230px;
+.feature-card.wide {
+    grid-column: span 2;
 }
 
-.feature b {
-    position: absolute;
-    top: 25px;
-    right: 28px;
-
-    color: #444;
-
-    font-size: 11px;
+.feature-number {
+    font-size: 9px;
+    color: #555;
 }
 
-.feature strong {
+.feature-icon {
     display: block;
-
-    margin-top: 80px;
-
-    color: var(--blue-bright);
-
-    font-size: 32px;
+    font-size: 30px;
+    margin: 45px 0 20px;
 }
 
-.feature h3 {
-    margin-top: 25px;
-
-    font-family: var(--font-display);
-    font-size: 21px;
-}
-
-.feature p {
-    max-width: 400px;
-
-    margin-top: 10px;
-
-    color: #777;
-    line-height: 1.6;
-}
-
-
-/* =========================================================
-   SERVICES
-========================================================= */
-
-.services {
-    border-top: 1px solid var(--line);
-}
-
-.services article {
-    min-height: 130px;
-
-    padding: 28px 20px;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    gap: 30px;
-
-    border-bottom: 1px solid var(--line);
-
-    transition: 0.25s;
-}
-
-.services article:hover {
-    padding-left: 30px;
-    background: rgba(24,70,255,0.04);
-}
-
-.services article.featured {
-    border-left: 3px solid var(--blue-bright);
-    background: rgba(24,70,255,0.05);
-}
-
-.services article > div {
-    display: flex;
-    gap: 35px;
-    align-items: flex-start;
-}
-
-.services article > div > small {
-    color: var(--blue-bright);
-    font-size: 10px;
-}
-
-.services h3 {
-    font-family: var(--font-display);
+.feature-card h3 {
+    font-family: "Space Grotesk";
     font-size: 20px;
 }
 
-.services p {
-    margin-top: 7px;
-
+.feature-card p {
+    margin-top: 10px;
     color: #777;
-    font-size: 13px;
-}
-
-.services article > strong {
-    white-space: nowrap;
-
-    font-family: var(--font-display);
-    font-size: 22px;
-}
-
-.services article > strong small {
-    color: #666;
-    font-size: 10px;
-}
-
-
-/* =========================================================
-   PRICING
-========================================================= */
-
-.pricing {
-    padding: 70px;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    gap: 50px;
-
-    border: 1px solid var(--line);
-    border-radius: 24px;
-
-    background:
-        radial-gradient(
-            circle at 80% 50%,
-            rgba(24,70,255,0.12),
-            transparent 40%
-        );
-}
-
-.pricing h2 {
-    font-size: clamp(40px, 5vw, 70px);
-}
-
-.pricing p {
-    color: #777;
-    line-height: 1.8;
-}
-
-
-/* =========================================================
-   MUSIC
-========================================================= */
-
-.music {
-    padding: 130px 7vw;
-}
-
-.music .heading {
-    align-items: center;
-}
-
-.vinyl {
-    width: 180px;
-    height: 180px;
-
-    border-radius: 50%;
-
-    display: grid;
-    place-items: center;
-
-    background:
-        repeating-radial-gradient(
-            circle,
-            #0b0b0b 0 5px,
-            #191919 6px 8px
-        );
-
-    border: 5px solid #222;
-
-    box-shadow:
-        0 0 70px rgba(24,70,255,0.2);
-
-    animation: vinylSpin 5s linear infinite;
-}
-
-.vinyl::before {
-    content: "";
-    position: absolute;
-
-    width: 55px;
-    height: 55px;
-
-    border-radius: 50%;
-
-    background: var(--blue-bright);
-
-    box-shadow:
-        0 0 25px rgba(24,70,255,0.5);
-}
-
-.vinyl b {
-    position: relative;
-    z-index: 2;
-
-    font-size: 9px;
-    letter-spacing: 2px;
-}
-
-@keyframes vinylSpin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-.spotify {
-    overflow: hidden;
-
-    border: 1px solid var(--line);
-    border-radius: 18px;
-
-    background: #111;
-}
-
-.spotify iframe {
-    display: block;
-
-    width: 100%;
-    min-height: 380px;
-
-    border: 0;
-}
-
-.disclaimer {
-    margin-top: 15px;
-
-    color: #555;
-
-    font-size: 10px;
+    max-width: 400px;
     line-height: 1.6;
 }
 
 
-/* =========================================================
-   BOOKING
-========================================================= */
+/* =====================================================
+   SERVICES
+===================================================== */
 
-.booking {
-    padding: 140px 7vw;
-
-    background:
-        linear-gradient(
-            180deg,
-            transparent,
-            rgba(14,41,153,0.05)
-        );
+.service-list {
+    border-top: 1px solid var(--line);
 }
 
-.booking-wrap {
-    max-width: 1250px;
-    margin: auto;
+.service-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 30px;
+    padding: 35px 0;
+    border-bottom: 1px solid var(--line);
+    transition: .25s;
+}
 
+.service-card:hover {
+    padding-left: 15px;
+    padding-right: 15px;
+    background: rgba(255,255,255,.025);
+}
+
+.service-card > div {
     display: grid;
-    grid-template-columns: 0.8fr 1fr;
-
-    gap: 80px;
-
-    align-items: start;
+    grid-template-columns: 40px 1fr;
+    gap: 10px;
 }
 
-.booking-info > p {
-    max-width: 450px;
-
-    margin-top: 25px;
-
-    color: #777;
-    line-height: 1.7;
-}
-
-.note {
-    margin-top: 35px;
-
-    color: #888;
-
-    font-size: 12px;
-    line-height: 1.7;
-}
-
-.card {
-    padding: 35px;
-
-    border: 1px solid var(--line);
-    border-radius: 20px;
-
-    background: rgba(17,17,17,0.9);
-
-    box-shadow:
-        0 30px 100px rgba(0,0,0,0.3);
-}
-
-.card label {
-    display: block;
-
-    margin-bottom: 20px;
-
-    color: #777;
-
+.service-card > div > span {
+    color: #555;
     font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
 }
 
-.card input,
-.card select,
-.modal-box input,
-.panel input,
-.panel select {
-    width: 100%;
-
-    margin-top: 8px;
-    padding: 15px;
-
-    border: 1px solid var(--line);
-    border-radius: 8px;
-
-    outline: none;
-
-    background: #0b0b0b;
-    color: var(--white);
-
-    transition: 0.2s;
+.service-card h3 {
+    font-family: "Space Grotesk";
 }
 
-.card input:focus,
-.card select:focus,
-.modal-box input:focus,
-.panel input:focus,
-.panel select:focus {
-    border-color: var(--blue-bright);
+.service-card p {
+    color: #777;
+    font-size: 13px;
+    margin-top: 7px;
 }
 
-.two {
+.service-card strong {
+    font-family: "Space Grotesk";
+    font-size: 24px;
+    white-space: nowrap;
+}
+
+.service-card strong span {
+    font-size: 10px;
+    color: #777;
+}
+
+
+/* =====================================================
+   MUSIC
+===================================================== */
+
+.music-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
 }
 
-.total {
-    margin-top: 15px;
-    padding: 20px 0;
+.music-player-card {
+    background: #101010;
+    border: 1px solid var(--line);
+    padding: 12px;
+}
 
+.music-card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    padding: 12px 5px;
+    font-size: 9px;
+    letter-spacing: .12em;
+    color: #777;
+}
 
+.youtube-placeholder {
+    height: 380px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background:
+        radial-gradient(circle at center,
+        #292929,
+        #0d0d0d 60%);
+}
+
+.youtube-placeholder h3 {
+    font-family: "Space Grotesk";
+    margin: 15px 0 8px;
+}
+
+.youtube-placeholder p {
+    color: #777;
+    max-width: 280px;
+    line-height: 1.6;
+}
+
+.youtube-icon {
+    width: 60px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid #555;
+}
+
+
+/* =====================================================
+   PRICING
+===================================================== */
+
+.pricing-banner {
+    padding: 70px;
+    border: 1px solid var(--line);
+    background:
+        radial-gradient(
+            circle at 80% 30%,
+            rgba(255,255,255,.08),
+            transparent 35%
+        ),
+        #111;
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+}
+
+.pricing-banner h2 {
+    font-family: "Space Grotesk";
+    font-size: clamp(40px,5vw,75px);
+    line-height: .95;
+    margin-top: 18px;
+}
+
+.pricing-banner h2 span {
+    color: transparent;
+    -webkit-text-stroke: 1px #777;
+}
+
+.pricing-note {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    color: #777;
+    line-height: 1.6;
+}
+
+.pulse-ring {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    border: 1px solid #777;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    50% {
+        transform: scale(1.2);
+        opacity: .4;
+    }
+}
+
+
+/* =====================================================
+   BOOKING
+===================================================== */
+
+.booking-section {
+    padding: 140px 7vw;
     border-top: 1px solid var(--line);
 }
 
-.total span {
-    color: #666;
-
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 1px;
+.booking-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
 }
 
-.total b {
-    font-family: var(--font-display);
-    font-size: 28px;
+.booking-info p {
+    max-width: 430px;
+    color: #888;
+    line-height: 1.7;
+    margin-top: 30px;
 }
 
-.checkout {
-    width: 100%;
-
-    padding: 16px;
-
-    border: 0;
-
-    background: var(--white);
-    color: var(--black);
-
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: 1px;
-
-    transition: 0.25s;
-}
-
-.checkout:hover {
-    background: var(--blue-bright);
-    color: white;
-}
-
-.secure {
-    display: block;
-
-    margin-top: 13px;
-
-    text-align: center;
-
-    color: #555;
-
-    font-size: 9px;
-}
-
-
-/* =========================================================
-   TEST SECTION
-========================================================= */
-
-.test {
-    margin: 0 7vw 100px;
-    padding: 30px;
-
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    gap: 30px;
-
-    border: 1px dashed rgba(24,70,255,0.35);
-    border-radius: 15px;
-
-    background: rgba(24,70,255,0.025);
-}
-
-.test h3 {
-    margin-top: 8px;
-
-    font-family: var(--font-display);
-}
-
-.test p {
-    margin-top: 5px;
-
-    color: #666;
+.booking-note {
+    margin-top: 35px;
+    color: #777;
     font-size: 12px;
 }
 
+.booking-note span {
+    color: white;
+    margin-right: 10px;
+}
 
-/* =========================================================
-   FOOTER
-========================================================= */
+.booking-card {
+    padding: 35px;
+    background: #111;
+    border: 1px solid var(--line);
+}
 
-footer {
-    padding: 50px 7vw;
-
+.booking-progress {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-
-    border-top: 1px solid var(--line);
-
-    color: #555;
+    margin-bottom: 35px;
 }
 
-footer .logo {
-    color: var(--white);
-}
-
-footer p {
+.booking-progress span {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid #444;
+    color: #666;
     font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
+}
+
+.booking-progress span.active {
+    background: var(--white);
+    color: #080808;
+    border-color: var(--white);
+}
+
+.booking-progress i {
+    width: 40px;
+    height: 1px;
+    background: #333;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 8px;
+    letter-spacing: .15em;
+    color: #777;
+    margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select,
+.admin-panel input,
+.admin-panel select,
+.modal-box input {
+    width: 100%;
+    background: #090909;
+    color: white;
+    border: 1px solid #292929;
+    padding: 14px;
+    outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.modal-box input:focus {
+    border-color: #777;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.booking-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 0;
+    margin-top: 5px;
+    border-top: 1px solid var(--line);
+}
+
+.booking-total span {
+    font-size: 9px;
+    color: #777;
+}
+
+.booking-total strong {
+    font-family: "Space Grotesk";
+    font-size: 25px;
+}
+
+.checkout-button {
+    width: 100%;
+}
+
+.secure-note {
+    text-align: center;
+    margin-top: 12px;
+    color: #555;
+    font-size: 9px;
 }
 
 
-/* =========================================================
-   ADMIN TRIGGER
-========================================================= */
+/* =====================================================
+   NOW PLAYING
+===================================================== */
+
+.now-playing {
+    position: fixed;
+    right: 25px;
+    bottom: 25px;
+    z-index: 800;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 15px 10px 10px;
+    background: rgba(10,10,10,.88);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(20px);
+}
+
+.now-disc {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background:
+        repeating-radial-gradient(
+            circle,
+            #222 0 2px,
+            #090909 3px 4px
+        );
+    display: grid;
+    place-items: center;
+    animation: discSpin 4s linear infinite;
+}
+
+.disc-center {
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: #ddd;
+    color: #080808;
+    display: grid;
+    place-items: center;
+    font-size: 4px;
+    font-weight: 900;
+}
+
+@keyframes discSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.now-playing > div:last-child {
+    display: flex;
+    flex-direction: column;
+}
+
+.now-playing small {
+    font-size: 7px;
+    color: #666;
+    letter-spacing: .15em;
+}
+
+.now-playing strong {
+    font-size: 10px;
+    margin: 3px 0;
+}
+
+.now-playing span {
+    font-size: 8px;
+    color: #666;
+}
+
+
+/* =====================================================
+   FOOTER
+===================================================== */
+
+footer {
+    padding: 60px 7vw;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #666;
+    font-size: 9px;
+    letter-spacing: .12em;
+}
+
+.footer-logo {
+    font-family: "Space Grotesk";
+    font-size: 28px;
+    font-weight: 900;
+    color: white;
+}
+
+
+/* =====================================================
+   ADMIN
+===================================================== */
 
 .admin-trigger {
     position: fixed;
-    right: 18px;
-    bottom: 18px;
-
-    padding: 9px 13px;
-
-    border: 1px solid var(--line);
-
-    background: rgba(8,8,8,0.75);
-    color: #555;
-
+    left: 15px;
+    bottom: 15px;
+    z-index: 850;
+    background: transparent;
+    color: #444;
+    border: 0;
     font-size: 8px;
-    font-weight: 800;
-    letter-spacing: 1px;
-
-    backdrop-filter: blur(10px);
-
-    z-index: 500;
+    letter-spacing: .15em;
 }
 
 .admin-trigger:hover {
-    color: var(--white);
-    border-color: var(--blue-bright);
+    color: white;
 }
-
-
-/* =========================================================
-   MODAL
-========================================================= */
 
 .modal {
     position: fixed;
     inset: 0;
-
+    background: rgba(0,0,0,.8);
+    backdrop-filter: blur(15px);
     display: none;
     align-items: center;
     justify-content: center;
-
-    padding: 20px;
-
-    background: rgba(0,0,0,0.8);
-    backdrop-filter: blur(15px);
-
-    z-index: 5000;
+    z-index: 2000;
 }
 
 .modal.show {
@@ -1217,223 +1266,167 @@ footer p {
 }
 
 .modal-box {
-    position: relative;
-
-    width: min(450px, 100%);
-
+    width: min(420px,90vw);
     padding: 40px;
-
+    background: #111;
     border: 1px solid var(--line);
-    border-radius: 20px;
-
-    background: #101010;
-
-    box-shadow: 0 40px 120px rgba(0,0,0,0.7);
+    position: relative;
 }
 
 .modal-box h2 {
-    margin-bottom: 30px;
+    font-family: "Space Grotesk";
+    font-size: 45px;
+    line-height: .9;
+    margin: 20px 0 30px;
+}
+
+.modal-box h2 span {
+    color: transparent;
+    -webkit-text-stroke: 1px #777;
 }
 
 .modal-box input {
     margin-bottom: 12px;
 }
 
-.close {
+.close-modal {
     position: absolute;
-    top: 15px;
-    right: 18px;
-
-    border: 0;
-
+    right: 15px;
+    top: 12px;
     background: transparent;
     color: #777;
-
-    font-size: 28px;
-}
-
-.close:hover {
-    color: white;
+    border: 0;
+    font-size: 25px;
 }
 
 
-/* =========================================================
+/* =====================================================
    DASHBOARD
-========================================================= */
+===================================================== */
 
 .dashboard {
     position: fixed;
     inset: 0;
-
-    display: none;
-
-    padding: 50px 6vw;
-
     overflow-y: auto;
-
+    padding: 70px 6vw;
     background: #080808;
-
-    z-index: 4000;
+    z-index: 1900;
+    display: none;
 }
 
 .dashboard.show {
     display: block;
 }
 
-.dash-head {
+.dashboard-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-
-    gap: 30px;
-
-    margin-bottom: 45px;
+    align-items: end;
+    margin-bottom: 40px;
 }
 
-.dash-head h2 {
+.dashboard-header h2 {
+    font-family: "Space Grotesk";
     margin-top: 10px;
-
-    font-family: var(--font-display);
-    font-size: 42px;
 }
 
-.stats {
+.dashboard-stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-
+    grid-template-columns: repeat(4,1fr);
+    gap: 10px;
     margin-bottom: 20px;
 }
 
-.stats div {
+.dashboard-stats > div {
     padding: 25px;
-
     border: 1px solid var(--line);
-    border-radius: 14px;
-
-    background: #101010;
+    background: #111;
 }
 
-.stats small {
+.dashboard-stats span {
     display: block;
-
+    font-size: 8px;
     color: #666;
-
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 1px;
+    letter-spacing: .12em;
 }
 
-.stats b {
+.dashboard-stats strong {
     display: block;
-
+    font-family: "Space Grotesk";
+    font-size: 28px;
     margin-top: 10px;
-
-    font-family: var(--font-display);
-    font-size: 30px;
 }
 
-.admin-grid {
+.admin-columns {
     display: grid;
-    grid-template-columns: 1.4fr 0.8fr;
+    grid-template-columns: 1.5fr 1fr;
     gap: 15px;
 }
 
-.panel {
+.admin-panel {
     padding: 25px;
-
+    background: #111;
     border: 1px solid var(--line);
-    border-radius: 15px;
-
-    background: #101010;
 }
 
-.panel-title {
-    margin-bottom: 20px;
-
+.admin-panel-title {
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    margin-bottom: 20px;
 }
 
-.panel-title h3 {
-    font-family: var(--font-display);
+.admin-panel-title h3 {
+    font-family: "Space Grotesk";
 }
 
-.panel-title button {
-    border: 0;
-
-    background: transparent;
-    color: #777;
-
-    font-size: 9px;
-}
-
-.panel-title button:hover {
-    color: #ff4d4d;
-}
-
-.panel > input,
-.panel > select {
+.admin-panel input,
+.admin-panel select {
     margin-bottom: 10px;
 }
 
-.booking-item {
-    margin-bottom: 10px;
-    padding: 18px;
-
-    border: 1px solid var(--line);
-    border-radius: 10px;
-
-    background: #0b0b0b;
+.booking-item,
+.blocked-item {
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
 }
 
-.booking-item strong {
+.booking-item strong,
+.booking-item small {
     display: block;
 }
 
 .booking-item small {
-    display: block;
-
+    color: #777;
     margin-top: 5px;
+}
 
-    color: #666;
-    line-height: 1.6;
+.booking-status {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 5px 8px;
+    border: 1px solid #333;
+    font-size: 7px;
+    text-transform: uppercase;
 }
 
 .booking-actions {
     display: flex;
-    gap: 7px;
+    gap: 5px;
+    flex-wrap: wrap;
     margin-top: 12px;
 }
 
 .booking-actions button {
-    padding: 8px 11px;
-
-    border: 1px solid var(--line);
-
     background: transparent;
     color: #aaa;
-
-    font-size: 9px;
+    border: 1px solid #333;
+    padding: 7px 9px;
+    font-size: 7px;
 }
 
 .booking-actions button:hover {
-    border-color: var(--blue-bright);
     color: white;
-}
-
-.blocked-item {
-    margin-top: 10px;
-    padding: 12px;
-
-    border-left: 2px solid var(--blue-bright);
-
-    background: #0b0b0b;
-
-    color: #777;
-
-    font-size: 11px;
+    border-color: #777;
 }
 
 .empty {
@@ -1442,50 +1435,35 @@ footer p {
 }
 
 
-/* =========================================================
-   TOAST
-========================================================= */
+/* =====================================================
+   RESPONSIVE
+===================================================== */
 
-#toast {
-    position: fixed;
-    left: 50%;
-    bottom: 30px;
+@media(max-width:1000px) {
 
-    transform:
-        translate(-50%, 20px);
+    .hero {
+        grid-template-columns: 1fr;
+    }
 
-    padding: 13px 20px;
+    .hero-visual {
+        margin-top: 30px;
+    }
 
-    border: 1px solid var(--line);
+    .booking-wrapper {
+        grid-template-columns: 1fr;
+    }
 
-    border-radius: 8px;
+    .music-grid {
+        grid-template-columns: 1fr;
+    }
 
-    background: #111;
-    color: white;
+    .dashboard-stats {
+        grid-template-columns: 1fr 1fr;
+    }
 
-    font-size: 11px;
-
-    opacity: 0;
-    pointer-events: none;
-
-    transition: 0.3s;
-
-    z-index: 10000;
 }
 
-#toast.show {
-    opacity: 1;
-
-    transform:
-        translate(-50%, 0);
-}
-
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media (max-width: 900px) {
+@media(max-width:700px) {
 
     .navbar {
         padding: 0 20px;
@@ -1495,184 +1473,66 @@ footer p {
         display: none;
     }
 
+    .nav-button {
+        padding: 10px;
+    }
+
     .hero {
-        grid-template-columns: 1fr;
-        padding: 130px 25px 70px;
-    }
-
-    .hero h1 {
-        letter-spacing: -3px;
-    }
-
-    .hero-visual {
-        min-height: 430px;
-    }
-
-    .deck {
-        transform: none;
-    }
-
-    .jog {
-        width: 110px;
-    }
-
-    .mixer {
-        width: 80px;
+        padding: 130px 20px 50px;
     }
 
     .section,
-    .music {
-        padding: 90px 25px;
+    .booking-section {
+        padding: 90px 20px;
     }
 
-    .heading {
-        display: block;
-    }
-
-    .heading > p {
-        margin-top: 25px;
-    }
-
-    .features {
-        grid-template-columns: 1fr;
-    }
-
-    .feature.big,
-    .feature.wide {
-        min-height: 270px;
-    }
-
-    .pricing {
-        padding: 35px;
-        display: block;
-    }
-
-    .pricing p {
-        margin-top: 30px;
-    }
-
-    .booking {
-        padding: 90px 25px;
-    }
-
-    .booking-wrap {
-        grid-template-columns: 1fr;
-        gap: 45px;
-    }
-
-    .test {
-        margin: 0 25px 70px;
-    }
-
-    footer {
-        padding: 40px 25px;
-        flex-wrap: wrap;
-        gap: 20px;
-    }
-
-    .stats {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .admin-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .dashboard {
-        padding: 30px 20px;
-    }
-
-    .dash-head {
-        align-items: flex-start;
-    }
-
-    .dash-head h2 {
-        font-size: 30px;
-    }
-}
-
-
-@media (max-width: 550px) {
-
-    .nav-button {
-        display: none;
-    }
-
-    .hero-buttons {
+    .section-heading {
         flex-direction: column;
     }
 
-    .hero-stats {
-        gap: 22px;
+    .feature-grid {
+        grid-template-columns: 1fr;
     }
 
-    .hero-stats strong {
-        font-size: 21px;
+    .feature-card.wide {
+        grid-column: auto;
+    }
+
+    .service-card {
+        align-items: start;
+        flex-direction: column;
+    }
+
+    .pricing-banner {
+        padding: 35px;
+        flex-direction: column;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-stats,
+    .admin-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .dj-console {
+        min-width: 760px;
     }
 
     .hero-visual {
-        min-height: 340px;
+        overflow-x: auto;
     }
 
-    .deck {
-        padding: 15px;
-        border-radius: 15px;
+    .now-playing {
+        right: 10px;
+        bottom: 10px;
     }
 
-    .jog {
-        width: 85px;
-        border-width: 5px;
-    }
-
-    .jog::after {
-        width: 35px;
-        height: 35px;
-        font-size: 7px;
-    }
-
-    .mixer {
-        gap: 6px;
-    }
-
-    .mixer i {
-        width: 5px;
-        height: 70px;
-    }
-
-    .two {
-        grid-template-columns: 1fr;
-        gap: 0;
-    }
-
-    .card {
-        padding: 22px;
-    }
-
-    .services article {
-        align-items: flex-start;
+    footer {
         flex-direction: column;
-    }
-
-    .services article > strong {
-        margin-left: 45px;
-    }
-
-    .vinyl {
-        width: 120px;
-        height: 120px;
-        margin-top: 30px;
-    }
-
-    .spotify iframe {
-        min-height: 300px;
-    }
-
-    .stats {
-        grid-template-columns: 1fr;
-    }
-
-    .test {
-        align-items: flex-start;
-        flex-direction: column;
+        gap: 20px;
+        text-align: center;
     }
 }
