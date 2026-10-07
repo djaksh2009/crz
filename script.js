@@ -1,22 +1,7 @@
 /* =========================================================
-   CRZ — SCRIPT
-   Booking + Admin + Spotify Visualizer
+   CRZ — COMPLETE FRONTEND SCRIPT
+   Local backend: http://localhost:3000
 ========================================================= */
-
-/*
-   IMPORTANT
-   ----------
-   Your frontend should NOT contain:
-
-   - admin password
-   - SMS API secret
-   - email API secret
-   - database credentials
-
-   Those belong on your backend.
-
-   Change ONLY this URL once your backend is deployed.
-*/
 
 const API_BASE = "http://localhost:3000";
 
@@ -39,33 +24,85 @@ const TIME_SLOTS = [
     "07:00 PM – 08:00 PM"
 ];
 
-const SERVICE_NAMES = {
-    "250": "Practice",
-    "400": "Practice + Audio",
-    "500": "Practice + Audio + Video",
-    "1500": "Edited Recording"
-};
+const SERVICES = [
+    {
+        value: "250",
+        name: "Practice",
+        label: "Practice — ₹250/hr"
+    },
+    {
+        value: "400",
+        name: "Practice + Audio",
+        label: "Practice + Audio — ₹400/hr"
+    },
+    {
+        value: "500",
+        name: "Practice + Audio + Video",
+        label: "Practice + Audio + Video — ₹500/hr"
+    },
+    {
+        value: "1500",
+        name: "Edited Recording",
+        label: "Edited Recording — ₹1,500/hr"
+    }
+];
 
 
 /* =========================================================
-   DOM HELPERS
+   HELPERS
 ========================================================= */
 
-const $ = (id) => document.getElementById(id);
+function $(id) {
+    return document.getElementById(id);
+}
+
 
 function showToast(message) {
 
-    const toast = $("toast");
+    let toast = $("crzToast");
 
-    if (!toast) return;
+    if (!toast) {
+
+        toast = document.createElement("div");
+
+        toast.id = "crzToast";
+
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #080808;
+            color: #F1ECE0;
+            border: 1px solid rgba(241,236,224,.2);
+            padding: 14px 22px;
+            border-radius: 10px;
+            font-family: Inter, sans-serif;
+            font-size: 14px;
+            z-index: 99999;
+            opacity: 0;
+            pointer-events: none;
+            transition: .3s ease;
+        `;
+
+        document.body.appendChild(toast);
+    }
 
     toast.textContent = message;
-    toast.classList.add("show");
 
-    clearTimeout(window.toastTimer);
+    toast.style.opacity = "1";
+    toast.style.transform =
+        "translateX(-50%) translateY(0)";
 
-    window.toastTimer = setTimeout(() => {
-        toast.classList.remove("show");
+    clearTimeout(window.crzToastTimer);
+
+    window.crzToastTimer = setTimeout(() => {
+
+        toast.style.opacity = "0";
+
+        toast.style.transform =
+            "translateX(-50%) translateY(20px)";
+
     }, 3000);
 }
 
@@ -87,32 +124,38 @@ function scrollToBooking() {
 
 
 /* =========================================================
-   DATE SETUP
+   DATE
 ========================================================= */
 
-function setupDates() {
+function setupDate() {
 
-    const dateInput = $("bookingDate");
+    const input = $("bookingDate");
 
-    if (!dateInput) return;
+    if (!input) return;
 
     const today = new Date();
 
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
+    const year =
+        today.getFullYear();
 
-    dateInput.min = `${year}-${month}-${day}`;
+    const month =
+        String(today.getMonth() + 1)
+            .padStart(2, "0");
 
-    /*
-       Default to today.
-    */
+    const day =
+        String(today.getDate())
+            .padStart(2, "0");
 
-    if (!dateInput.value) {
-        dateInput.value = `${year}-${month}-${day}`;
+    const todayString =
+        `${year}-${month}-${day}`;
+
+    input.min = todayString;
+
+    if (!input.value) {
+        input.value = todayString;
     }
 
-    dateInput.addEventListener(
+    input.addEventListener(
         "change",
         refreshAvailability
     );
@@ -128,38 +171,68 @@ function populateTimeSlots(
     bookings = []
 ) {
 
-    const select = $("bookingTime");
+    const select =
+        $("bookingTime");
 
-    if (!select) return;
+    if (!select) {
+
+        console.error(
+            "CRZ: #bookingTime was not found."
+        );
+
+        return;
+    }
+
+
+    /*
+       Completely rebuild the dropdown.
+       This guarantees the options appear even
+       if the backend returns nothing.
+    */
 
     select.innerHTML = "";
+
 
     const placeholder =
         document.createElement("option");
 
     placeholder.value = "";
-    placeholder.textContent = "Select time";
 
-    select.appendChild(placeholder);
+    placeholder.textContent =
+        "Select time";
+
+    placeholder.selected = true;
+
+    select.appendChild(
+        placeholder
+    );
+
 
     TIME_SLOTS.forEach(slot => {
-
-        const blockedSlot =
-            blocked.some(
-                item =>
-                    item.time === slot
-            );
-
-        const bookedSlot =
-            bookings.some(
-                item =>
-                    item.time === slot
-            );
 
         const option =
             document.createElement("option");
 
         option.value = slot;
+
+        option.textContent = slot;
+
+
+        const blockedSlot =
+            blocked.some(
+                item =>
+                    item &&
+                    item.time === slot
+            );
+
+
+        const bookedSlot =
+            bookings.some(
+                item =>
+                    item &&
+                    item.time === slot
+            );
+
 
         if (blockedSlot) {
 
@@ -168,20 +241,112 @@ function populateTimeSlots(
             option.textContent =
                 `${slot} — BLOCKED`;
 
-        } else if (bookedSlot) {
+        }
+
+
+        if (bookedSlot) {
 
             option.disabled = true;
 
             option.textContent =
                 `${slot} — BOOKED`;
 
-        } else {
-
-            option.textContent = slot;
         }
 
-        select.appendChild(option);
+
+        select.appendChild(
+            option
+        );
     });
+
+
+    console.log(
+        `CRZ: ${TIME_SLOTS.length} time slots loaded.`
+    );
+}
+
+
+/* =========================================================
+   SERVICE DROPDOWN
+========================================================= */
+
+function populateServices() {
+
+    const select =
+        $("bookingService");
+
+    if (!select) {
+
+        console.error(
+            "CRZ: #bookingService was not found."
+        );
+
+        return;
+    }
+
+
+    select.innerHTML = "";
+
+
+    const placeholder =
+        document.createElement("option");
+
+    placeholder.value = "";
+
+    placeholder.textContent =
+        "Select service";
+
+    placeholder.selected = true;
+
+    select.appendChild(
+        placeholder
+    );
+
+
+    SERVICES.forEach(service => {
+
+        const option =
+            document.createElement("option");
+
+        option.value =
+            service.value;
+
+        option.textContent =
+            service.label;
+
+        select.appendChild(
+            option
+        );
+    });
+
+
+    console.log(
+        `CRZ: ${SERVICES.length} services loaded.`
+    );
+}
+
+
+/* =========================================================
+   TOTAL
+========================================================= */
+
+function updateTotal() {
+
+    const select =
+        $("bookingService");
+
+    const total =
+        $("bookingTotal");
+
+    if (!select || !total) return;
+
+
+    const amount =
+        Number(select.value || 0);
+
+
+    total.textContent =
+        `₹${amount.toLocaleString("en-IN")}`;
 }
 
 
@@ -191,99 +356,73 @@ function populateTimeSlots(
 
 async function refreshAvailability() {
 
-    const dateInput = $("bookingDate");
+    const dateInput =
+        $("bookingDate");
 
-    if (!dateInput || !dateInput.value) {
+    if (!dateInput) return;
 
-        populateTimeSlots();
 
-        return;
-    }
+    const date =
+        dateInput.value;
+
 
     /*
-       If no backend has been connected yet,
-       keep all slots selectable.
+       Always show the slots first.
+       The backend can then disable booked/blocked ones.
     */
 
-    if (
-        !API_BASE ||
-        API_BASE.includes("YOUR-CRZ-BACKEND")
-    ) {
+    populateTimeSlots();
 
-        populateTimeSlots();
 
-        return;
-    }
+    if (!date) return;
+
 
     try {
 
         const response =
             await fetch(
-                `${API_BASE}/api/availability?date=${encodeURIComponent(dateInput.value)}`
+                `${API_BASE}/api/availability?date=${encodeURIComponent(date)}`
             );
 
+
         if (!response.ok) {
-            throw new Error("Availability request failed.");
+
+            throw new Error(
+                `HTTP ${response.status}`
+            );
         }
+
 
         const data =
             await response.json();
+
 
         populateTimeSlots(
             data.blocked || [],
             data.bookings || []
         );
 
+
     } catch (error) {
 
         console.error(
-            "Availability error:",
+            "CRZ availability error:",
             error
         );
 
         /*
-           Don't destroy the booking form
-           if the backend is temporarily unavailable.
+           Don't leave the user with an empty dropdown
+           just because availability failed.
         */
 
         populateTimeSlots();
 
-        showToast(
-            "Couldn't load live availability."
-        );
     }
 }
 
 
 /* =========================================================
-   SERVICE TOTAL
-========================================================= */
-
-function updateTotal() {
-
-    const service = $("bookingService");
-    const total = $("bookingTotal");
-
-    if (!service || !total) return;
-
-    const price =
-        Number(service.value || 0);
-
-    total.textContent =
-        `₹${price.toLocaleString("en-IN")}`;
-}
-
-if ($("bookingService")) {
-
-    $("bookingService").addEventListener(
-        "change",
-        updateTotal
-    );
-}
-
-
-/* =========================================================
-   BOOKING VALIDATION
+   BOOKING DATA
 ========================================================= */
 
 function getBookingData() {
@@ -306,50 +445,108 @@ function getBookingData() {
     const service =
         $("bookingService")?.value;
 
+
     if (!name) {
-        showToast("Enter your name.");
+
+        showToast(
+            "Please enter your name."
+        );
+
         return null;
     }
+
 
     if (!email) {
-        showToast("Enter your email.");
+
+        showToast(
+            "Please enter your email."
+        );
+
         return null;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showToast("Enter a valid email.");
+
+    if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            .test(email)
+    ) {
+
+        showToast(
+            "Please enter a valid email."
+        );
+
         return null;
     }
+
 
     if (!phone) {
-        showToast("Enter your phone number.");
+
+        showToast(
+            "Please enter your phone number."
+        );
+
         return null;
     }
+
 
     if (!date) {
-        showToast("Select a date.");
+
+        showToast(
+            "Please select a date."
+        );
+
         return null;
     }
+
 
     if (!time) {
-        showToast("Select a time.");
+
+        showToast(
+            "Please select a time."
+        );
+
         return null;
     }
+
 
     if (!service) {
-        showToast("Select a service.");
+
+        showToast(
+            "Please select a service."
+        );
+
         return null;
     }
 
+
+    const selectedService =
+        SERVICES.find(
+            item =>
+                item.value === service
+        );
+
+
     return {
+
         name,
+
         email,
+
         phone,
+
         date,
+
         time,
+
         service,
-        serviceName: SERVICE_NAMES[service],
-        amount: Number(service)
+
+        serviceName:
+            selectedService?.name ||
+            "CRZ Service",
+
+        amount:
+            Number(service)
+
     };
 }
 
@@ -366,36 +563,24 @@ async function createBooking() {
     if (!booking) return;
 
 
-    /*
-       Backend isn't connected yet.
-    */
-
-    if (
-        !API_BASE ||
-        API_BASE.includes("YOUR-CRZ-BACKEND")
-    ) {
-
-        showToast(
-            "Booking backend isn't connected yet."
-        );
-
-        console.log(
-            "Booking data:",
-            booking
-        );
-
-        return;
-    }
-
-
     const button =
-        document.querySelector(".checkout");
+        document.querySelector(
+            ".checkout-button"
+        );
+
+
+    const originalText =
+        button
+            ? button.innerHTML
+            : "";
+
 
     if (button) {
 
         button.disabled = true;
-        button.textContent =
-            "SENDING REQUEST...";
+
+        button.innerHTML =
+            "PROCESSING...";
     }
 
 
@@ -405,6 +590,7 @@ async function createBooking() {
             await fetch(
                 `${API_BASE}/api/bookings`,
                 {
+
                     method: "POST",
 
                     headers: {
@@ -413,7 +599,9 @@ async function createBooking() {
                     },
 
                     body:
-                        JSON.stringify(booking)
+                        JSON.stringify(
+                            booking
+                        )
                 }
             );
 
@@ -431,41 +619,55 @@ async function createBooking() {
         }
 
 
+        console.log(
+            "CRZ booking:",
+            data
+        );
+
+
         showToast(
-            "Booking request sent successfully."
+            data.message ||
+            "Booking request received!"
         );
 
 
         /*
-           Clear only the booking fields.
+           Clear form.
         */
 
         $("bookingName").value = "";
+
         $("bookingEmail").value = "";
+
         $("bookingPhone").value = "";
+
         $("bookingTime").value = "";
+
         $("bookingService").value = "";
 
         updateTotal();
 
+
         /*
-           Refresh available slots.
+           Refresh availability.
         */
 
-        refreshAvailability();
+        await refreshAvailability();
 
 
     } catch (error) {
 
         console.error(
-            "Booking error:",
+            "CRZ booking error:",
             error
         );
+
 
         showToast(
             error.message ||
             "Could not create booking."
         );
+
 
     } finally {
 
@@ -474,7 +676,8 @@ async function createBooking() {
             button.disabled = false;
 
             button.innerHTML =
-                "REQUEST BOOKING ↗";
+                originalText ||
+                "CONTINUE TO PAYMENT ↗";
         }
     }
 }
@@ -485,19 +688,6 @@ async function createBooking() {
 ========================================================= */
 
 async function sendTestNotification() {
-
-    if (
-        !API_BASE ||
-        API_BASE.includes("YOUR-CRZ-BACKEND")
-    ) {
-
-        showToast(
-            "Connect the backend first."
-        );
-
-        return;
-    }
-
 
     try {
 
@@ -537,12 +727,14 @@ async function sendTestNotification() {
     } catch (error) {
 
         console.error(
+            "Notification error:",
             error
         );
 
+
         showToast(
             error.message ||
-            "Could not send test notification."
+            "Notification test failed."
         );
     }
 }
@@ -583,29 +775,18 @@ function closeAdminLogin() {
 async function adminLogin() {
 
     const email =
-        $("adminEmail")?.value.trim();
+        $("adminEmail")
+            ?.value.trim();
 
     const password =
-        $("adminPassword")?.value;
+        $("adminPassword")
+            ?.value;
 
 
     if (!email || !password) {
 
         showToast(
-            "Enter your admin credentials."
-        );
-
-        return;
-    }
-
-
-    if (
-        !API_BASE ||
-        API_BASE.includes("YOUR-CRZ-BACKEND")
-    ) {
-
-        showToast(
-            "Admin backend isn't connected."
+            "Enter your admin email and password."
         );
 
         return;
@@ -618,6 +799,7 @@ async function adminLogin() {
             await fetch(
                 `${API_BASE}/api/admin/login`,
                 {
+
                     method: "POST",
 
                     headers: {
@@ -642,15 +824,10 @@ async function adminLogin() {
 
             throw new Error(
                 data.message ||
-                "Invalid admin credentials."
+                "Invalid credentials."
             );
         }
 
-
-        /*
-           Store ONLY the authentication token,
-           never the password.
-        */
 
         if (data.token) {
 
@@ -665,6 +842,7 @@ async function adminLogin() {
 
         openDashboard();
 
+
         showToast(
             "Admin login successful."
         );
@@ -673,19 +851,21 @@ async function adminLogin() {
     } catch (error) {
 
         console.error(
+            "Admin login error:",
             error
         );
 
+
         showToast(
             error.message ||
-            "Login failed."
+            "Admin login failed."
         );
     }
 }
 
 
 /* =========================================================
-   ADMIN LOGOUT
+   LOGOUT
 ========================================================= */
 
 function logoutAdmin() {
@@ -694,8 +874,10 @@ function logoutAdmin() {
         "crz_admin_token"
     );
 
+
     $("dashboard")
         ?.classList.remove("show");
+
 
     showToast(
         "Logged out."
@@ -704,7 +886,7 @@ function logoutAdmin() {
 
 
 /* =========================================================
-   DASHBOARD
+   ADMIN DASHBOARD
 ========================================================= */
 
 async function openDashboard() {
@@ -714,24 +896,21 @@ async function openDashboard() {
 
     if (!dashboard) return;
 
-    dashboard.classList.add("show");
+
+    dashboard.classList.add(
+        "show"
+    );
+
 
     await loadAdminData();
 }
 
 
+/* =========================================================
+   LOAD ADMIN DATA
+========================================================= */
+
 async function loadAdminData() {
-
-    if (
-        !API_BASE ||
-        API_BASE.includes("YOUR-CRZ-BACKEND")
-    ) {
-
-        renderLocalDashboard();
-
-        return;
-    }
-
 
     const token =
         sessionStorage.getItem(
@@ -756,15 +935,21 @@ async function loadAdminData() {
             await fetch(
                 `${API_BASE}/api/admin/dashboard`,
                 {
+
                     headers: {
+
                         Authorization:
                             `Bearer ${token}`
+
                     }
+
                 }
             );
 
 
-        if (response.status === 401) {
+        if (
+            response.status === 401
+        ) {
 
             logoutAdmin();
 
@@ -780,7 +965,7 @@ async function loadAdminData() {
 
             throw new Error(
                 data.message ||
-                "Dashboard request failed."
+                "Dashboard failed."
             );
         }
 
@@ -797,6 +982,7 @@ async function loadAdminData() {
             error
         );
 
+
         showToast(
             "Couldn't load dashboard."
         );
@@ -810,22 +996,44 @@ async function loadAdminData() {
 
 function renderDashboard(data) {
 
-    $("todayCount").textContent =
-        data.todayCount ?? 0;
+    if ($("todayCount")) {
 
-    $("futureCount").textContent =
-        data.futureCount ?? 0;
+        $("todayCount")
+            .textContent =
+            data.todayCount ?? 0;
+    }
 
-    $("completedCount").textContent =
-        data.completedCount ?? 0;
 
-    $("revenue").textContent =
-        `₹${Number(data.revenue || 0).toLocaleString("en-IN")}`;
+    if ($("futureCount")) {
+
+        $("futureCount")
+            .textContent =
+            data.futureCount ?? 0;
+    }
+
+
+    if ($("completedCount")) {
+
+        $("completedCount")
+            .textContent =
+            data.completedCount ?? 0;
+    }
+
+
+    if ($("revenue")) {
+
+        $("revenue")
+            .textContent =
+            `₹${Number(
+                data.revenue || 0
+            ).toLocaleString("en-IN")}`;
+    }
 
 
     renderBookings(
         data.bookings || []
     );
+
 
     renderBlockedSlots(
         data.blocked || []
@@ -833,22 +1041,30 @@ function renderDashboard(data) {
 }
 
 
-function renderBookings(bookings) {
+/* =========================================================
+   BOOKINGS LIST
+========================================================= */
+
+function renderBookings(
+    bookings
+) {
 
     const container =
         $("bookingList");
 
     if (!container) return;
 
+
     container.innerHTML = "";
 
 
     if (!bookings.length) {
 
-        container.innerHTML =
-            `<p class="empty">
+        container.innerHTML = `
+            <p class="empty">
                 No bookings yet.
-            </p>`;
+            </p>
+        `;
 
         return;
     }
@@ -858,51 +1074,93 @@ function renderBookings(bookings) {
         booking => {
 
             const item =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
+
 
             item.className =
                 "booking-item";
 
 
             item.innerHTML = `
+
                 <strong>
-                    ${escapeHTML(booking.name || "Unknown")}
+                    ${escapeHTML(
+                        booking.name ||
+                        "Unknown"
+                    )}
                 </strong>
 
                 <small>
-                    ${escapeHTML(booking.date || "")}
+                    ${escapeHTML(
+                        booking.date ||
+                        ""
+                    )}
                     ·
-                    ${escapeHTML(booking.time || "")}
+                    ${escapeHTML(
+                        booking.time ||
+                        ""
+                    )}
                 </small>
 
                 <small>
-                    ${escapeHTML(booking.serviceName || "")}
+                    ${escapeHTML(
+                        booking.serviceName ||
+                        ""
+                    )}
                     ·
-                    ₹${Number(booking.amount || 0).toLocaleString("en-IN")}
+                    ₹${Number(
+                        booking.amount ||
+                        0
+                    ).toLocaleString("en-IN")}
                 </small>
 
                 <small>
-                    ${escapeHTML(booking.email || "")}
+                    ${escapeHTML(
+                        booking.email ||
+                        ""
+                    )}
+
                     <br>
-                    ${escapeHTML(booking.phone || "")}
+
+                    ${escapeHTML(
+                        booking.phone ||
+                        ""
+                    )}
                 </small>
 
                 <div class="booking-actions">
 
                     <button
-                        onclick="updateBookingStatus('${escapeAttribute(booking.id)}','confirmed')"
+                        onclick="updateBookingStatus(
+                            '${escapeAttribute(
+                                booking.id
+                            )}',
+                            'confirmed'
+                        )"
                     >
                         CONFIRM
                     </button>
 
                     <button
-                        onclick="updateBookingStatus('${escapeAttribute(booking.id)}','completed')"
+                        onclick="updateBookingStatus(
+                            '${escapeAttribute(
+                                booking.id
+                            )}',
+                            'completed'
+                        )"
                     >
                         COMPLETED
                     </button>
 
                     <button
-                        onclick="updateBookingStatus('${escapeAttribute(booking.id)}','cancelled')"
+                        onclick="updateBookingStatus(
+                            '${escapeAttribute(
+                                booking.id
+                            )}',
+                            'cancelled'
+                        )"
                     >
                         CANCEL
                     </button>
@@ -919,22 +1177,30 @@ function renderBookings(bookings) {
 }
 
 
-function renderBlockedSlots(blocked) {
+/* =========================================================
+   BLOCKED SLOTS
+========================================================= */
+
+function renderBlockedSlots(
+    blocked
+) {
 
     const container =
         $("blockedList");
 
     if (!container) return;
 
+
     container.innerHTML = "";
 
 
     if (!blocked.length) {
 
-        container.innerHTML =
-            `<p class="empty">
+        container.innerHTML = `
+            <p class="empty">
                 No blocked slots.
-            </p>`;
+            </p>
+        `;
 
         return;
     }
@@ -944,24 +1210,38 @@ function renderBlockedSlots(blocked) {
         item => {
 
             const div =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
+
 
             div.className =
                 "blocked-item";
 
+
             div.innerHTML = `
+
                 <strong>
-                    ${escapeHTML(item.date || "")}
+                    ${escapeHTML(
+                        item.date || ""
+                    )}
                 </strong>
 
                 <br>
 
-                ${escapeHTML(item.time || "")}
+                ${escapeHTML(
+                    item.time || ""
+                )}
 
                 <br>
 
-                ${escapeHTML(item.reason || "Blocked")}
+                ${escapeHTML(
+                    item.reason ||
+                    "Blocked by admin"
+                )}
+
             `;
+
 
             container.appendChild(
                 div
@@ -972,144 +1252,22 @@ function renderBlockedSlots(blocked) {
 
 
 /* =========================================================
-   LOCAL DASHBOARD FALLBACK
-========================================================= */
-
-function getLocalBookings() {
-
-    try {
-
-        return JSON.parse(
-            localStorage.getItem(
-                "crz_bookings"
-            )
-        ) || [];
-
-    } catch {
-
-        return [];
-    }
-}
-
-
-function saveLocalBookings(bookings) {
-
-    localStorage.setItem(
-        "crz_bookings",
-        JSON.stringify(bookings)
-    );
-}
-
-
-function renderLocalDashboard() {
-
-    const bookings =
-        getLocalBookings();
-
-
-    const today =
-        new Date()
-            .toISOString()
-            .split("T")[0];
-
-
-    const todayBookings =
-        bookings.filter(
-            b => b.date === today
-        );
-
-
-    const futureBookings =
-        bookings.filter(
-            b => b.date > today
-        );
-
-
-    const completed =
-        bookings.filter(
-            b => b.status === "completed"
-        );
-
-
-    const revenue =
-        completed.reduce(
-            (sum, booking) =>
-                sum + Number(booking.amount || 0),
-            0
-        );
-
-
-    $("todayCount").textContent =
-        todayBookings.length;
-
-    $("futureCount").textContent =
-        futureBookings.length;
-
-    $("completedCount").textContent =
-        completed.length;
-
-    $("revenue").textContent =
-        `₹${revenue.toLocaleString("en-IN")}`;
-
-
-    renderBookings(
-        bookings
-    );
-
-
-    const blocked =
-        getLocalBlocked();
-
-    renderBlockedSlots(
-        blocked
-    );
-}
-
-
-/* =========================================================
-   LOCAL BLOCKED SLOTS
-========================================================= */
-
-function getLocalBlocked() {
-
-    try {
-
-        return JSON.parse(
-            localStorage.getItem(
-                "crz_blocked"
-            )
-        ) || [];
-
-    } catch {
-
-        return [];
-    }
-}
-
-
-function saveLocalBlocked(blocked) {
-
-    localStorage.setItem(
-        "crz_blocked",
-        JSON.stringify(blocked)
-    );
-}
-
-
-/* =========================================================
-   BLOCK SLOT
+   BLOCK TIME
 ========================================================= */
 
 async function blockTime() {
 
     const date =
-        $("blockDate")?.value;
+        $("blockDate")
+            ?.value;
 
     const time =
-        $("blockTime")?.value;
+        $("blockTime")
+            ?.value;
 
     const reason =
-        $("blockReason")?.value.trim();
+        $("blockReason")
+            ?.value.trim();
 
 
     if (!date) {
@@ -1126,48 +1284,6 @@ async function blockTime() {
 
         showToast(
             "Select a time."
-        );
-
-        return;
-    }
-
-
-    if (
-        !API_BASE ||
-        API_BASE.includes("YOUR-CRZ-BACKEND")
-    ) {
-
-        const blocked =
-            getLocalBlocked();
-
-
-        blocked.push({
-            id:
-                Date.now().toString(),
-
-            date,
-            time,
-
-            reason:
-                reason ||
-                "Blocked by admin"
-        });
-
-
-        saveLocalBlocked(
-            blocked
-        );
-
-
-        $("blockReason").value =
-            "";
-
-
-        renderLocalDashboard();
-
-
-        showToast(
-            "Time slot blocked."
         );
 
         return;
@@ -1194,25 +1310,32 @@ async function blockTime() {
             await fetch(
                 `${API_BASE}/api/admin/block`,
                 {
+
                     method: "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json",
 
                         Authorization:
                             `Bearer ${token}`
+
                     },
 
                     body:
                         JSON.stringify({
+
                             date,
+
                             time,
+
                             reason:
                                 reason ||
                                 "Blocked by admin"
+
                         })
-                    }
+
                 }
             );
 
@@ -1230,8 +1353,7 @@ async function blockTime() {
         }
 
 
-        $("blockReason").value =
-            "";
+        $("blockReason").value = "";
 
 
         await loadAdminData();
@@ -1245,8 +1367,10 @@ async function blockTime() {
     } catch (error) {
 
         console.error(
+            "Block error:",
             error
         );
+
 
         showToast(
             error.message ||
@@ -1257,46 +1381,13 @@ async function blockTime() {
 
 
 /* =========================================================
-   UPDATE BOOKING STATUS
+   BOOKING STATUS
 ========================================================= */
 
 async function updateBookingStatus(
     id,
     status
 ) {
-
-    if (
-        !API_BASE ||
-        API_BASE.includes("YOUR-CRZ-BACKEND")
-    ) {
-
-        const bookings =
-            getLocalBookings();
-
-        const booking =
-            bookings.find(
-                b => String(b.id) === String(id)
-            );
-
-        if (booking) {
-
-            booking.status =
-                status;
-
-            saveLocalBookings(
-                bookings
-            );
-
-            renderLocalDashboard();
-
-            showToast(
-                `Booking marked ${status}.`
-            );
-        }
-
-        return;
-    }
-
 
     const token =
         sessionStorage.getItem(
@@ -1318,20 +1409,24 @@ async function updateBookingStatus(
             await fetch(
                 `${API_BASE}/api/admin/bookings/${encodeURIComponent(id)}/status`,
                 {
+
                     method: "PATCH",
 
                     headers: {
+
                         "Content-Type":
                             "application/json",
 
                         Authorization:
                             `Bearer ${token}`
+
                     },
 
                     body:
                         JSON.stringify({
                             status
                         })
+
                 }
             );
 
@@ -1360,8 +1455,10 @@ async function updateBookingStatus(
     } catch (error) {
 
         console.error(
+            "Status error:",
             error
         );
+
 
         showToast(
             error.message ||
@@ -1378,31 +1475,12 @@ async function updateBookingStatus(
 async function clearBookings() {
 
     const confirmed =
-        window.confirm(
+        confirm(
             "Clear all bookings? This cannot be undone."
         );
 
 
     if (!confirmed) return;
-
-
-    if (
-        !API_BASE ||
-        API_BASE.includes("YOUR-CRZ-BACKEND")
-    ) {
-
-        localStorage.removeItem(
-            "crz_bookings"
-        );
-
-        renderLocalDashboard();
-
-        showToast(
-            "Local bookings cleared."
-        );
-
-        return;
-    }
 
 
     const token =
@@ -1425,12 +1503,16 @@ async function clearBookings() {
             await fetch(
                 `${API_BASE}/api/admin/bookings`,
                 {
+
                     method: "DELETE",
 
                     headers: {
+
                         Authorization:
                             `Bearer ${token}`
+
                     }
+
                 }
             );
 
@@ -1459,8 +1541,10 @@ async function clearBookings() {
     } catch (error) {
 
         console.error(
+            "Clear bookings error:",
             error
         );
+
 
         showToast(
             error.message ||
@@ -1471,67 +1555,45 @@ async function clearBookings() {
 
 
 /* =========================================================
-   SPOTIFY / DJ VISUAL
+   DJ VISUAL
 ========================================================= */
-
-/*
-   IMPORTANT:
-
-   Spotify's iframe does NOT expose the actual audio
-   waveform/BPM to our JavaScript.
-
-   Therefore we cannot truthfully make the CRZ deck
-   beat-sync to the Spotify audio itself.
-
-   What we CAN do is make the deck look alive:
-   waveform animation + jog rotation + meters.
-
-   The Spotify player remains the actual music source.
-*/
-
 
 function createWaveform() {
 
     const waveform =
-        $("waveform");
+        document.querySelector(
+            ".waveform"
+        );
 
     if (!waveform) return;
+
 
     waveform.innerHTML = "";
 
 
-    const bars = 46;
-
-
     for (
         let i = 0;
-        i < bars;
+        i < 40;
         i++
     ) {
 
         const bar =
-            document.createElement("i");
+            document.createElement(
+                "span"
+            );
 
 
         const height =
-            25 +
-            Math.random() * 75;
+            15 +
+            Math.random() * 55;
 
 
-        const delay =
-            Math.random() * 0.7;
+        bar.style.height =
+            `${height}px`;
 
 
-        bar.style.setProperty(
-            "--h",
-            `${height}px`
-        );
-
-
-        bar.style.setProperty(
-            "--delay",
-            `${delay}s`
-        );
+        bar.style.animationDelay =
+            `${Math.random() * 1.2}s`;
 
 
         waveform.appendChild(
@@ -1542,35 +1604,52 @@ function createWaveform() {
 
 
 /* =========================================================
-   INTERACTION-BASED DJ ANIMATION
+   ADMIN MODAL
 ========================================================= */
 
-function activateDJVisual() {
+function setupAdminModal() {
 
-    const deck =
-        $("djDeck");
+    const modal =
+        $("adminModal");
 
-    if (!deck) return;
+    if (!modal) return;
+
+
+    modal.addEventListener(
+        "click",
+        event => {
+
+            if (
+                event.target === modal
+            ) {
+
+                closeAdminLogin();
+
+            }
+
+        }
+    );
 
 
     document.addEventListener(
-        "click",
-        () => {
+        "keydown",
+        event => {
 
-            deck.classList.add(
-                "active"
-            );
+            if (
+                event.key === "Escape"
+            ) {
 
-        },
-        {
-            once: true
+                closeAdminLogin();
+
+            }
+
         }
     );
 }
 
 
 /* =========================================================
-   ESCAPE HTML
+   SECURITY HELPERS
 ========================================================= */
 
 function escapeHTML(value) {
@@ -1614,79 +1693,80 @@ function escapeAttribute(value) {
 
 
 /* =========================================================
-   KEYBOARD SHORTCUT
-========================================================= */
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.key === "Escape"
-        ) {
-
-            closeAdminLogin();
-        }
-    }
-);
-
-
-/* =========================================================
-   CLICK OUTSIDE MODAL
-========================================================= */
-
-$("adminModal")
-    ?.addEventListener(
-        "click",
-        event => {
-
-            if (
-                event.target ===
-                $("adminModal")
-            ) {
-
-                closeAdminLogin();
-            }
-        }
-    );
-
-
-/* =========================================================
    INITIALIZATION
 ========================================================= */
 
 document.addEventListener(
     "DOMContentLoaded",
-    () => {
+    async () => {
 
-        createWaveform();
+        console.log(
+            "CRZ initializing..."
+        );
 
-        setupDates();
+
+        /*
+           1. Build dropdowns FIRST.
+        */
 
         populateTimeSlots();
 
+        populateServices();
+
+
+        /*
+           2. Set today's date.
+        */
+
+        setupDate();
+
+
+        /*
+           3. Calculate initial total.
+        */
+
         updateTotal();
 
-        activateDJVisual();
+
+        /*
+           4. Create DJ visual.
+        */
+
+        createWaveform();
 
 
         /*
-           Load availability after the
-           initial date is established.
+           5. Admin modal.
         */
 
-        refreshAvailability();
+        setupAdminModal();
 
 
         /*
-           If an admin token exists,
-           don't automatically expose the
-           dashboard. The admin still needs
-           to deliberately open it.
+           6. Service changes.
         */
+
+        const serviceSelect =
+            $("bookingService");
+
+        if (serviceSelect) {
+
+            serviceSelect.addEventListener(
+                "change",
+                updateTotal
+            );
+        }
+
+
+        /*
+           7. Load availability.
+        */
+
+        await refreshAvailability();
+
 
         console.log(
-            "CRZ website initialized."
+            "CRZ initialized successfully."
         );
     }
 );
