@@ -1,3988 +1,1156 @@
-/*
-====================================================
-CRZ — DJ STUDIO BENGALURU
-FRONTEND PROTOTYPE
-====================================================
-
-DEMO ONLY
-
-Authentication, payments, bookings, refunds,
-email and SMS notifications are simulated with
-localStorage.
-
-PRODUCTION VERSION SHOULD USE:
-
-- Supabase / Firebase authentication
-- PostgreSQL / Supabase database
-- Razorpay / another payment gateway
-- Server-side payment verification
-- Payment webhooks
-- Transactional email provider
-- Indian transactional SMS provider
-- Proper admin authorization
-
-ADMIN EMAIL:
-admin@crz.studio
-====================================================
-*/
+/* =========================================================
+   CRZ DJ STUDIO
+   FRONTEND DEMO / V1
+   ========================================================= */
 
 
-/* =================================================
-   CONFIG
-================================================= */
-
-const ADMIN_EMAIL = "admin@crz.studio";
-
-
-/* =================================================
+/* =========================================================
    PACKAGES
-================================================= */
+   ========================================================= */
 
-const PACKAGES = {
-
-    Practice: {
-        price: 250,
-        label: "Practice Only",
-        desc:
-            "4-CDJ setup + mixer + studio monitors"
+const packages = {
+    practice: {
+        name: "Practice Only",
+        price: 250
     },
 
-    Audio: {
-        price: 400,
-        label: "Practice + Audio",
-        desc:
-            "Practice + clean mixer audio recording"
+    audio: {
+        name: "Practice + Audio",
+        price: 400
     },
 
-    Video: {
-        price: 500,
-        label: "Practice + Audio + Video",
-        desc:
-            "Audio + 4-camera multi-view recording"
+    video: {
+        name: "Practice + Audio + Video",
+        price: 500
     },
 
-    Raw: {
-        price: 600,
-        label: "Raw Recording",
-        desc:
-            "Unedited audio + multi-view video"
+    raw: {
+        name: "Raw Recording",
+        price: 600
     },
 
-    Edited: {
-        price: 1800,
-        label: "Edited Recording",
-        desc:
-            "Audio + multi-view video + professional edit; 7–10 business days"
+    edited: {
+        name: "Edited Recording",
+        price: 1500
     }
-
 };
 
 
-/* =================================================
-   HELPERS
-================================================= */
+/* =========================================================
+   DEMO DATA
+   ========================================================= */
 
-const $ = selector =>
-    document.querySelector(selector);
+let bookings = JSON.parse(
+    localStorage.getItem("crzBookings") || "[]"
+);
 
+let blockedSlots = JSON.parse(
+    localStorage.getItem("crzBlockedSlots") || "[]"
+);
 
-const esc = value =>
-    String(value ?? "")
-        .replace(
-            /[&<>"']/g,
-            character =>
-                ({
-                    "&": "&amp;",
-                    "<": "&lt;",
-                    ">": "&gt;",
-                    '"': "&quot;",
-                    "'": "&#39;"
-                }[character])
-        );
+let selectedSlot = null;
+
+let selectedPackage =
+    document.getElementById("packageSelect")?.value || "practice";
 
 
-const money = value =>
-    "₹" +
-    Number(value || 0)
-        .toLocaleString("en-IN");
+/* =========================================================
+   STUDIO HOURS
+   ========================================================= */
+
+const studioHours = [
+    "09:00",
+    "10:00",
+    "11:00",
+    "12:00",
+    "13:00",
+    "14:00",
+    "15:00",
+    "16:00",
+    "17:00",
+    "18:00",
+    "19:00",
+    "20:00"
+];
 
 
-const todayISO = () =>
-    new Date()
-        .toISOString()
-        .slice(0, 10);
+/* =========================================================
+   UTILITIES
+   ========================================================= */
 
-
-const addDays = days => {
-
-    const date = new Date();
-
-    date.setDate(
-        date.getDate() + days
-    );
-
-    return date
-        .toISOString()
-        .slice(0, 10);
-
-};
-
-
-const formatDate = date =>
-    new Date(
-        date + "T00:00:00"
-    ).toLocaleDateString(
-        "en-IN",
-        {
-            day: "numeric",
-            month: "short",
-            year: "numeric"
-        }
-    );
-
-
-const generateID = () =>
-    `CRZ-${Date.now()
-        .toString(36)
-        .toUpperCase()}-${Math.random()
-        .toString(36)
-        .slice(2, 6)
-        .toUpperCase()}`;
-
-
-/* =================================================
-   STATE
-================================================= */
-
-const defaultState = {
-
-    user: null,
-
-    users: [],
-
-    bookings: [],
-
-    notifications: [],
-
-    selectedPackage:
-        "Practice",
-
-    selectedDate:
-        addDays(1),
-
-    selectedTime:
-        "18:00",
-
-    selectedMethod:
-        "UPI",
-
-    adminTab:
-        "overview"
-
-};
-
-
-let state =
-    JSON.parse(
-        localStorage.getItem(
-            "crz_state"
-        ) || "null"
-    ) ||
-    structuredClone(
-        defaultState
-    );
-
-
-function save() {
+function saveData() {
 
     localStorage.setItem(
-        "crz_state",
-        JSON.stringify(state)
+        "crzBookings",
+        JSON.stringify(bookings)
     );
 
+    localStorage.setItem(
+        "crzBlockedSlots",
+        JSON.stringify(blockedSlots)
+    );
 }
 
 
-/* =================================================
-   TOAST
-================================================= */
+function formatTime(time) {
 
-function toast(message) {
+    const [hour, minute] = time.split(":");
 
-    const element =
-        $("#toast");
+    let h = Number(hour);
 
-    if (!element)
-        return;
+    const suffix = h >= 12 ? "PM" : "AM";
 
-    element.textContent =
-        message;
+    h = h % 12;
 
-    element.classList.add(
-        "show"
-    );
+    if (h === 0) h = 12;
 
-    clearTimeout(
-        window._toast
-    );
-
-    window._toast =
-        setTimeout(
-            () => {
-
-                element.classList.remove(
-                    "show"
-                );
-
-            },
-            3000
-        );
-
+    return `${h}:${minute} ${suffix}`;
 }
 
 
-/* =================================================
+function formatDate(date) {
+
+    if (!date) return "";
+
+    const d = new Date(date + "T00:00:00");
+
+    return d.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+    });
+}
+
+
+function generateBookingID() {
+
+    return "CRZ-" +
+        Math.floor(10000 + Math.random() * 90000);
+}
+
+
+/* =========================================================
    NAVIGATION
-================================================= */
+   ========================================================= */
 
-function go(page) {
-
-    location.hash =
-        page;
-
-}
-
-
-/* =================================================
-   NAVBAR
-================================================= */
-
-function navbar() {
-
-    return `
-
-<header class="nav">
-
-    <a
-        class="brand"
-        href="#home"
-    >
-        CRZ
-    </a>
-
-
-    <nav>
-
-        <a href="#home">
-            HOME
-        </a>
-
-        <a href="#studio">
-            STUDIO
-        </a>
-
-        <a href="#pricing">
-            PRICING
-        </a>
-
-        <a href="#book">
-            BOOK
-        </a>
-
-        ${
-            state.user
-                ?
-                `
-                <a href="#account">
-                    ACCOUNT
-                </a>
-                `
-                :
-                `
-                <a href="#login">
-                    LOGIN
-                </a>
-                `
-        }
-
-        ${
-            state.user?.email ===
-            ADMIN_EMAIL
-                ?
-                `
-                <a
-                    class="admin-link"
-                    href="#admin"
-                >
-                    ADMIN
-                </a>
-                `
-                :
-                ""
-        }
-
-    </nav>
-
-</header>
-
-`;
-
-}
-
-
-/* =================================================
-   SHELL
-================================================= */
-
-function shell(content) {
-
-    return `
-
-<div class="shell">
-
-    ${navbar()}
-
-    ${content}
-
-</div>
-
-`;
-
-}
-
-
-/* =================================================
-   HOME
-================================================= */
-
-function home() {
-
-    return shell(`
-
-<main class="hero">
-
-    <div>
-
-        <div class="eyebrow">
-
-            BENGALURU ·
-            DJ PRACTICE &
-            RECORDING STUDIO
-
-        </div>
-
-
-        <h1>
-
-            PRACTICE.<br>
-
-            RECORD.<br>
-
-            <span>
-                CREATE.
-            </span>
-
-        </h1>
-
-
-        <p class="lead">
-
-            A compact, professional DJ
-            room built around a 4-CDJ
-            setup, multi-camera recording
-            and a Boiler Room-inspired
-            environment.
-
-        </p>
-
-
-        <div class="actions">
-
-            <a
-                class="btn primary"
-                href="#book"
-            >
-                BOOK A SESSION
-            </a>
-
-            <a
-                class="btn"
-                href="#pricing"
-            >
-                VIEW PRICING
-            </a>
-
-        </div>
-
-
-        <div class="stats">
-
-            <div>
-
-                <b>
-                    4
-                </b>
-
-                <small>
-                    CDJs
-                </small>
-
-            </div>
-
-
-            <div>
-
-                <b>
-                    4
-                </b>
-
-                <small>
-                    CAMERAS
-                </small>
-
-            </div>
-
-
-            <div>
-
-                <b>
-                    ₹250
-                </b>
-
-                <small>
-                    FROM / HOUR
-                </small>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</main>
-
-
-<section
-    id="studio"
-    class="section"
->
-
-    <div class="section-head">
-
-        <span>
-            01
-        </span>
-
-        <h2>
-            THE STUDIO
-        </h2>
-
-    </div>
-
-
-    <div class="grid3">
-
-        <article>
-
-            <b>
-                PRO DJ SETUP
-            </b>
-
-            <p>
-
-                Four CDJs, professional
-                mixer and studio monitoring
-                for serious practice.
-
-            </p>
-
-        </article>
-
-
-        <article>
-
-            <b>
-                4-CAMERA SYSTEM
-            </b>
-
-            <p>
-
-                Straight, left, right and
-                top camera angles for
-                content and set recording.
-
-            </p>
-
-        </article>
-
-
-        <article>
-
-            <b>
-                CONTROLLED ROOM
-            </b>
-
-            <p>
-
-                Acoustic treatment,
-                controlled lighting and
-                a focused environment.
-
-            </p>
-
-        </article>
-
-    </div>
-
-</section>
-
-
-<section class="cta">
-
-    <div>
-
-        <span class="eyebrow">
-            CRZ · BENGALURU
-        </span>
-
-        <h2>
-
-            Your set.<br>
-            Your room.
-
-        </h2>
-
-    </div>
-
-
-    <a
-        class="btn primary"
-        href="#book"
-    >
-        BOOK NOW
-    </a>
-
-</section>
-
-`);
-
-}
-
-
-/* =================================================
-   PRICING
-================================================= */
-
-function pricing() {
-
-    return shell(`
-
-<section
-    id="pricing"
-    class="section pricing"
->
-
-    <div class="section-head">
-
-        <span>
-            02
-        </span>
-
-        <h2>
-            PRICING
-        </h2>
-
-    </div>
-
-
-    <div class="cards">
-
-        ${
-            Object.entries(
-                PACKAGES
-            )
-            .map(
-                ([key, pkg], index) => `
-
-<article
-    class="price-card
-    ${
-        index === 2
-            ? "featured"
-            : ""
-    }"
->
-
-    <div class="num">
-
-        0${index + 1}
-
-    </div>
-
-
-    <h3>
-
-        ${esc(pkg.label)}
-
-    </h3>
-
-
-    <p>
-
-        ${esc(pkg.desc)}
-
-    </p>
-
-
-    <strong>
-
-        ${money(pkg.price)}
-
-        <small>
-            /hr
-        </small>
-
-    </strong>
-
-
-    <button
-        class="btn
-        ${
-            index === 2
-                ? "primary"
-                : ""
-        }"
-        onclick="
-            selectPackage('${key}')
-        "
-    >
-
-        BOOK THIS
-
-    </button>
-
-</article>
-
-`
-            )
-            .join("")
-        }
-
-    </div>
-
-
-    <p class="note">
-
-        Edited recordings are delivered
-        within approximately 7–10
-        business days. Editing availability
-        may affect delivery time.
-
-    </p>
-
-</section>
-
-`);
-
-}
-
-
-/* =================================================
-   STUDIO
-================================================= */
-
-function studio() {
-
-    return shell(`
-
-<section class="section">
-
-    <div class="section-head">
-
-        <span>
-            03
-        </span>
-
-        <h2>
-            STUDIO
-        </h2>
-
-    </div>
-
-
-    <div class="studio-panel">
-
-        <div>
-
-            <div class="camera-grid">
-
-                <i>
-                    CAM 1 · FRONT
-                </i>
-
-                <i>
-                    CAM 2 · LEFT
-                </i>
-
-                <i>
-                    CAM 3 · RIGHT
-                </i>
-
-                <i>
-                    CAM 4 · TOP
-                </i>
-
-            </div>
-
-        </div>
-
-
-        <div>
-
-            <h3>
-
-                4-CDJ ·
-                MULTI-VIEW ·
-                RECORDING
-
-            </h3>
-
-
-            <p>
-
-                Designed for DJs who want
-                professional practice sessions
-                without the scale of a full
-                event venue.
-
-            </p>
-
-
-            <a
-                class="btn primary"
-                href="#book"
-            >
-
-                RESERVE THE ROOM
-
-            </a>
-
-        </div>
-
-    </div>
-
-</section>
-
-`);
-
-}
-
-
-/* =================================================
-   LOGIN
-================================================= */
-
-function login() {
-
-    return shell(`
-
-<section class="auth">
-
-    <div class="auth-card">
-
-        <span class="eyebrow">
-            CRZ ACCOUNT
-        </span>
-
-
-        <h2>
-            WELCOME BACK.
-        </h2>
-
-
-        <form
-            onsubmit="
-                loginSubmit(event)
-            "
-        >
-
-            <input
-                id="loginEmail"
-                type="email"
-                placeholder="Email"
-                required
-            >
-
-
-            <input
-                id="loginPass"
-                type="password"
-                placeholder="Password"
-                required
-            >
-
-
-            <button
-                class="btn primary"
-            >
-
-                LOGIN
-
-            </button>
-
-        </form>
-
-
-        <p>
-
-            New to CRZ?
-
-            <a href="#signup">
-                Create an account
-            </a>
-
-        </p>
-
-
-        <p class="demo">
-
-            Admin demo:
-            admin@crz.studio
-
-        </p>
-
-    </div>
-
-</section>
-
-`);
-
-}
-
-
-/* =================================================
-   SIGNUP
-================================================= */
-
-function signup() {
-
-    return shell(`
-
-<section class="auth">
-
-    <div class="auth-card">
-
-        <span class="eyebrow">
-            CRZ ACCOUNT
-        </span>
-
-
-        <h2>
-            CREATE ACCOUNT.
-        </h2>
-
-
-        <form
-            onsubmit="
-                signupSubmit(event)
-            "
-        >
-
-            <input
-                id="signupName"
-                placeholder="Full name"
-                required
-            >
-
-
-            <input
-                id="signupEmail"
-                type="email"
-                placeholder="Email"
-                required
-            >
-
-
-            <input
-                id="signupPhone"
-                type="tel"
-                placeholder="Phone number"
-                required
-            >
-
-
-            <input
-                id="signupPass"
-                type="password"
-                minlength="6"
-                placeholder="Password (6+ characters)"
-                required
-            >
-
-
-            <button
-                class="btn primary"
-            >
-
-                CREATE ACCOUNT
-
-            </button>
-
-        </form>
-
-
-        <p>
-
-            Already registered?
-
-            <a href="#login">
-                Login
-            </a>
-
-        </p>
-
-    </div>
-
-</section>
-
-`);
-
-}
-
-
-/* =================================================
-   PACKAGE SELECTION
-================================================= */
-
-function selectPackage(key) {
-
-    state.selectedPackage =
-        key;
-
-    save();
-
-    go("book");
-
-}
-
-
-/* =================================================
-   BOOKING PAGE
-================================================= */
-
-function book() {
-
-    if (!state.user) {
-
-        return shell(`
-
-<section class="auth">
-
-    <div class="auth-card">
-
-        <span class="eyebrow">
-            BOOK CRZ
-        </span>
-
-
-        <h2>
-            LOGIN REQUIRED.
-        </h2>
-
-
-        <p>
-
-            Create an account so CRZ
-            can send booking confirmations
-            and keep your sessions in your
-            account.
-
-        </p>
-
-
-        <a
-            class="btn primary"
-            href="#login"
-        >
-
-            LOGIN / SIGN UP
-
-        </a>
-
-    </div>
-
-</section>
-
-`);
-
-    }
-
-
-    return shell(`
-
-<section
-    class="section booking-page"
->
-
-    <div class="section-head">
-
-        <span>
-            04
-        </span>
-
-        <h2>
-            BOOK A SESSION
-        </h2>
-
-    </div>
-
-
-    <div class="booking-layout">
-
-
-        <form
-            class="booking-form"
-            onsubmit="
-                openCheckout(event)
-            "
-        >
-
-            <label>
-
-                SESSION
-
-                <select id="package">
-
-                    ${
-                        Object.entries(
-                            PACKAGES
-                        )
-                        .map(
-                            ([key, pkg]) => `
-
-<option
-    value="${key}"
-    ${
-        key ===
-        state.selectedPackage
-            ? "selected"
-            : ""
-    }
->
-
-    ${pkg.label}
-    —
-    ${money(pkg.price)}/hr
-
-</option>
-
-`
-                        )
-                        .join("")
-                    }
-
-                </select>
-
-            </label>
-
-
-            <div class="two">
-
-                <label>
-
-                    DATE
-
-                    <input
-                        id="date"
-                        type="date"
-                        min="${todayISO()}"
-                        value="${state.selectedDate}"
-                        required
-                    >
-
-                </label>
-
-
-                <label>
-
-                    TIME
-
-                    <select id="time">
-
-                        ${
-                            [
-                                "09:00",
-                                "10:00",
-                                "11:00",
-                                "12:00",
-                                "13:00",
-                                "14:00",
-                                "15:00",
-                                "16:00",
-                                "17:00",
-                                "18:00",
-                                "19:00",
-                                "20:00",
-                                "21:00"
-                            ]
-                            .map(
-                                time => `
-
-<option
-    ${
-        time ===
-        state.selectedTime
-            ? "selected"
-            : ""
-    }
->
-
-    ${time}
-
-</option>
-
-`
-                            )
-                            .join("")
-                        }
-
-                    </select>
-
-                </label>
-
-            </div>
-
-
-            <div class="account-info">
-
-                <b>
-                    Notifications
-                </b>
-
-                <span>
-                    ${esc(state.user.email)}
-                </span>
-
-                <span>
-                    ${esc(state.user.phone)}
-                </span>
-
-                <small>
-
-                    Confirmation email +
-                    SMS will be simulated
-                    in this prototype.
-
-                </small>
-
-            </div>
-
-
-            <button
-                class="btn primary full"
-            >
-
-                CONTINUE TO PAYMENT ·
-
-                <span>
-
-                    ${money(
-                        PACKAGES[
-                            state.selectedPackage
-                        ].price
-                    )}
-
-                </span>
-
-            </button>
-
-        </form>
-
-
-        <aside class="booking-summary">
-
-            <span class="eyebrow">
-                YOUR SESSION
-            </span>
-
-
-            <h3>
-
-                ${
-                    PACKAGES[
-                        state.selectedPackage
-                    ].label
-                }
-
-            </h3>
-
-
-            <p>
-
-                ${
-                    PACKAGES[
-                        state.selectedPackage
-                    ].desc
-                }
-
-            </p>
-
-
-            <strong>
-
-                ${money(
-                    PACKAGES[
-                        state.selectedPackage
-                    ].price
-                )}/hr
-
-            </strong>
-
-
-            <hr>
-
-
-            <small>
-
-                Professional equipment ·
-                Controlled room ·
-                Booking confirmation
-
-            </small>
-
-        </aside>
-
-    </div>
-
-</section>
-
-`);
-
-}
-
-
-/* =================================================
-   CHECKOUT
-================================================= */
-
-function openCheckout(event) {
-
-    event.preventDefault();
-
-
-    state.selectedPackage =
-        $("#package").value;
-
-
-    state.selectedDate =
-        $("#date").value;
-
-
-    state.selectedTime =
-        $("#time").value;
-
-
-    save();
-
-
-    const pkg =
-        PACKAGES[
-            state.selectedPackage
-        ];
-
-
-    document.body.insertAdjacentHTML(
-        "beforeend",
-        `
-
-<div
-    class="modal"
-    id="checkout"
->
-
-    <div class="modal-card">
-
-        <button
-            class="close"
-            onclick="
-                closeModal()
-            "
-        >
-
-            ×
-
-        </button>
-
-
-        <span class="eyebrow">
-            PAYMENT
-        </span>
-
-
-        <h2>
-            CONFIRM & PAY.
-        </h2>
-
-
-        <div class="checkout-summary">
-
-            <b>
-                ${pkg.label}
-            </b>
-
-            <span>
-
-                ${formatDate(
-                    state.selectedDate
-                )}
-
-                ·
-
-                ${state.selectedTime}
-
-            </span>
-
-
-            <strong>
-
-                ${money(pkg.price)}
-
-            </strong>
-
-        </div>
-
-
-        <div class="methods">
-
-            <button
-                class="method active"
-                onclick="
-                    setMethod(this,'UPI')
-                "
-            >
-                UPI
-            </button>
-
-
-            <button
-                class="method"
-                onclick="
-                    setMethod(this,'Card')
-                "
-            >
-                CARD
-            </button>
-
-
-            <button
-                class="method"
-                onclick="
-                    setMethod(
-                        this,
-                        'Net Banking'
-                    )
-                "
-            >
-                NET BANKING
-            </button>
-
-
-            <button
-                class="method"
-                onclick="
-                    setMethod(
-                        this,
-                        'BHIM UPI'
-                    )
-                "
-            >
-                BHIM
-            </button>
-
-        </div>
-
-
-        <div
-            id="methodExtra"
-            class="method-extra"
-        >
-
-            <input
-                placeholder="UPI ID (demo)"
-                id="upi"
-            >
-
-        </div>
-
-
-        <button
-            class="btn primary full"
-            onclick="
-                demoPay()
-            "
-        >
-
-            PAY
-            ${money(pkg.price)}
-            · TEST PAYMENT
-
-        </button>
-
-
-        <p class="demo">
-
-            Prototype mode —
-            no real money is charged.
-
-        </p>
-
-    </div>
-
-</div>
-
-`
-    );
-
-}
-
-
-/* =================================================
-   PAYMENT METHOD
-================================================= */
-
-function setMethod(
-    element,
-    method
-) {
+function scrollToBooking() {
 
     document
-        .querySelectorAll(
-            ".method"
-        )
-        .forEach(
-            button =>
-                button.classList.remove(
-                    "active"
-                )
-        );
-
-
-    element.classList.add(
-        "active"
-    );
-
-
-    state.selectedMethod =
-        method;
-
-
-    const extra =
-        $("#methodExtra");
-
-
-    if (
-        method.includes(
-            "UPI"
-        )
-    ) {
-
-        extra.innerHTML = `
-
-<input
-    id="upi"
-    placeholder="UPI ID (demo)"
->
-
-`;
-
-    }
-
-    else if (
-        method === "Card"
-    ) {
-
-        extra.innerHTML = `
-
-<div class="two">
-
-<input
-    placeholder="Card number"
->
-
-<input
-    placeholder="MM/YY"
->
-
-</div>
-
-`;
-
-    }
-
-    else if (
-        method ===
-        "Net Banking"
-    ) {
-
-        extra.innerHTML = `
-
-<select>
-
-<option>
-    Select bank
-</option>
-
-<option>
-    HDFC Bank
-</option>
-
-<option>
-    ICICI Bank
-</option>
-
-<option>
-    SBI
-</option>
-
-<option>
-    Axis Bank
-</option>
-
-</select>
-
-`;
-
-    }
-
-    else {
-
-        extra.innerHTML = "";
-
-    }
-
+        .getElementById("booking")
+        .scrollIntoView({
+            behavior: "smooth"
+        });
 }
 
 
-/* =================================================
-   DEMO PAYMENT
-================================================= */
+function scrollToSection(id) {
 
-function demoPay() {
-
-    const pkg =
-        PACKAGES[
-            state.selectedPackage
-        ];
+    document
+        .getElementById(id)
+        .scrollIntoView({
+            behavior: "smooth"
+        });
+}
 
 
-    const slotTaken =
-        state.bookings.some(
-            booking =>
+/* =========================================================
+   PACKAGE SELECTION
+   ========================================================= */
 
-                booking.date ===
-                    state.selectedDate &&
+function startBooking(type) {
 
-                booking.time ===
-                    state.selectedTime &&
+    document.getElementById("packageSelect").value = type;
 
-                booking.bookingStatus !==
-                    "Cancelled"
-        );
+    selectedPackage = type;
+
+    scrollToBooking();
+
+    loadSlots();
+}
 
 
-    if (slotTaken) {
+/* =========================================================
+   DATE
+   ========================================================= */
 
-        toast(
-            "That slot is already booked."
-        );
+const dateInput =
+    document.getElementById("bookingDate");
+
+if (dateInput) {
+
+    const today =
+        new Date().toISOString().split("T")[0];
+
+    dateInput.min = today;
+
+    dateInput.value = today;
+
+    loadSlots();
+}
+
+
+/* =========================================================
+   SLOT AVAILABILITY
+   ========================================================= */
+
+function isSlotUnavailable(date, time) {
+
+    const bookingExists = bookings.some(
+        booking =>
+            booking.date === date &&
+            booking.time === time &&
+            booking.status !== "cancelled"
+    );
+
+    const blockedExists = blockedSlots.some(
+        blocked =>
+            blocked.date === date &&
+            blocked.time === time
+    );
+
+    return bookingExists || blockedExists;
+}
+
+
+function loadSlots() {
+
+    const date =
+        document.getElementById("bookingDate")?.value;
+
+    const slotsContainer =
+        document.getElementById("slots");
+
+    const paymentButton =
+        document.getElementById("continuePayment");
+
+    if (!date) {
+
+        slotsContainer.innerHTML = `
+            <div class="slot-placeholder">
+                Select a date first.
+            </div>
+        `;
+
+        paymentButton.disabled = true;
 
         return;
+    }
 
+    slotsContainer.innerHTML = "";
+
+    selectedSlot = null;
+
+    paymentButton.disabled = true;
+
+    studioHours.forEach(time => {
+
+        const button =
+            document.createElement("button");
+
+        button.className = "slot";
+
+        button.textContent =
+            `${formatTime(time)} – ${formatTime(addHour(time))}`;
+
+        const unavailable =
+            isSlotUnavailable(date, time);
+
+        if (unavailable) {
+
+            button.classList.add("unavailable");
+
+            button.disabled = true;
+
+            button.textContent += "  •  UNAVAILABLE";
+
+        } else {
+
+            button.onclick = () => selectSlot(
+                button,
+                time
+            );
+
+        }
+
+        slotsContainer.appendChild(button);
+
+    });
+}
+
+
+function addHour(time) {
+
+    let [hour, minute] =
+        time.split(":").map(Number);
+
+    hour++;
+
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+
+/* =========================================================
+   SELECT SLOT
+   ========================================================= */
+
+function selectSlot(button, time) {
+
+    document
+        .querySelectorAll(".slot")
+        .forEach(slot => {
+            slot.classList.remove("selected");
+        });
+
+    button.classList.add("selected");
+
+    selectedSlot = time;
+
+    document.getElementById(
+        "continuePayment"
+    ).disabled = false;
+}
+
+
+/* =========================================================
+   PAYMENT
+   ========================================================= */
+
+function continueToPayment() {
+
+    if (!selectedSlot) return;
+
+    const date =
+        document.getElementById("bookingDate").value;
+
+    selectedPackage =
+        document.getElementById("packageSelect").value;
+
+    const packageData =
+        packages[selectedPackage];
+
+    document.getElementById(
+        "paymentSummary"
+    ).innerHTML = `
+        <strong>${packageData.name}</strong><br>
+        ${formatDate(date)}<br>
+        ${formatTime(selectedSlot)}
+        – ${formatTime(addHour(selectedSlot))}<br>
+        <br>
+        <strong>₹${packageData.price} / hour</strong>
+    `;
+
+    document
+        .getElementById("paymentModal")
+        .classList.add("show");
+}
+
+
+function closePayment() {
+
+    document
+        .getElementById("paymentModal")
+        .classList.remove("show");
+}
+
+
+function selectPaymentMethod(button) {
+
+    document
+        .querySelectorAll(".payment-methods button")
+        .forEach(btn =>
+            btn.classList.remove("selected")
+        );
+
+    button.classList.add("selected");
+}
+
+
+/* =========================================================
+   PAYMENT DEMO
+   ========================================================= */
+
+function simulatePayment() {
+
+    if (!selectedSlot) return;
+
+    const date =
+        document.getElementById("bookingDate").value;
+
+    const packageData =
+        packages[
+            document.getElementById("packageSelect").value
+        ];
+
+    /*
+        DOUBLE-BOOKING CHECK
+
+        This is still performed immediately before
+        creating the booking.
+
+        In production this check MUST also happen
+        server-side/database-side.
+    */
+
+    if (isSlotUnavailable(date, selectedSlot)) {
+
+        alert(
+            "Sorry — this slot has just been taken. Please select another slot."
+        );
+
+        closePayment();
+
+        loadSlots();
+
+        return;
     }
 
 
     const booking = {
 
-        id:
-            generateID(),
+        id: generateBookingID(),
 
-        userEmail:
-            state.user.email,
+        date: date,
 
-        userName:
-            state.user.name,
+        time: selectedSlot,
 
-        phone:
-            state.user.phone,
+        package: packageData.name,
 
-        package:
-            state.selectedPackage,
+        price: packageData.price,
 
-        packageLabel:
-            pkg.label,
+        status: "upcoming",
 
-        price:
-            pkg.price,
+        paymentStatus: "paid",
 
-        date:
-            state.selectedDate,
+        createdAt: new Date().toISOString(),
 
-        time:
-            state.selectedTime,
-
-        paymentMethod:
-            state.selectedMethod,
-
-        paymentStatus:
-            "Paid",
-
-        bookingStatus:
-            "Confirmed",
-
-        refundStatus:
-            "Not Requested",
-
-        recordingStatus:
-
-            state.selectedPackage ===
-                "Practice"
-
-                ?
-
-                "None"
-
-                :
-
-                state.selectedPackage ===
-                    "Audio"
-
-                ?
-
-                "Audio"
-
-                :
-
-                state.selectedPackage ===
-                    "Video"
-
-                ?
-
-                "Audio + Video"
-
-                :
-
-                "Raw Audio + Video",
-
-
-        editingStatus:
-
-            state.selectedPackage ===
-                "Edited"
-
-                ?
-
-                "Queued"
-
-                :
-
-                "Not Applicable",
-
-
-        createdAt:
-            new Date()
-                .toISOString()
+        customer: {
+            name: "Demo Customer",
+            email: "customer@example.com",
+            phone: "+91 90000 00000"
+        }
 
     };
 
 
-    state.bookings.push(
+    /*
+        PAYMENT CONFIRMED
+    */
+
+    console.log(
+        "EMAIL + SMS: PAYMENT CONFIRMED",
         booking
     );
 
 
     /*
-    =================================================
-    TEST EMAIL + SMS
-    =================================================
+        BOOKING CONFIRMED
     */
 
-    sendTestNotifications(
+    bookings.push(booking);
+
+    saveData();
+
+
+    console.log(
+        "EMAIL + SMS: BOOKING CONFIRMED",
         booking
     );
 
 
-    save();
+    closePayment();
+
+    showBookingConfirmation(booking);
+
+    loadSlots();
+
+    updateAdminStats();
+
+}
 
 
-    $("#checkout").innerHTML = `
+/* =========================================================
+   BOOKING CONFIRMATION
+   ========================================================= */
 
-<div
-    class="modal-card success"
->
+function showBookingConfirmation(booking) {
 
-    <div class="check">
-        ✓
-    </div>
+    alert(
+        `CRZ BOOKING CONFIRMED\n\n` +
 
+        `Booking ID: ${booking.id}\n` +
 
-    <span class="eyebrow">
+        `Date: ${formatDate(booking.date)}\n` +
 
-        CRZ ·
-        ${esc(booking.id)}
+        `Time: ${formatTime(booking.time)} – ${formatTime(addHour(booking.time))}\n\n` +
 
-    </span>
+        `Payment: ₹${booking.price} PAID\n\n` +
 
-
-    <h2>
-
-        BOOKING<br>
-
-        <span>
-            CONFIRMED.
-        </span>
-
-    </h2>
+        `Payment confirmation and booking confirmation ` +
+        `will be sent by EMAIL + SMS in the production system.`
+    );
+}
 
 
-    <p>
+/* =========================================================
+   AUTH
+   ========================================================= */
 
-        ${esc(pkg.label)}
+function openAuth() {
 
-        ·
-
-        ${formatDate(
-            booking.date
-        )}
-
-        ·
-
-        ${booking.time}
-
-    </p>
+    document
+        .getElementById("authModal")
+        .classList.add("show");
+}
 
 
-    <strong>
+function closeAuth() {
 
-        ${money(
-            booking.price
-        )}
-
-    </strong>
-
-
-    <div
-        class="notification-result"
-    >
-
-        <b>
-            TEST NOTIFICATIONS SENT
-        </b>
+    document
+        .getElementById("authModal")
+        .classList.remove("show");
+}
 
 
-        <span>
+function showEmailLogin() {
 
-            ✓ Email →
+    document
+        .getElementById("emailLogin")
+        .classList.remove("hidden");
 
-            ${esc(
-                booking.userEmail
-            )}
+    document
+        .getElementById("phoneLogin")
+        .classList.add("hidden");
 
-        </span>
+    document
+        .getElementById("emailTab")
+        .classList.add("active");
 
-
-        <span>
-
-            ✓ SMS →
-
-            ${esc(
-                booking.phone
-            )}
-
-        </span>
-
-    </div>
+    document
+        .getElementById("phoneTab")
+        .classList.remove("active");
+}
 
 
-    <button
-        class="btn primary full"
-        onclick="
-            closeModal();
-            go('account')
-        "
-    >
+function showPhoneLogin() {
 
-        VIEW MY BOOKING
+    document
+        .getElementById("emailLogin")
+        .classList.add("hidden");
 
-    </button>
+    document
+        .getElementById("phoneLogin")
+        .classList.remove("hidden");
 
-</div>
+    document
+        .getElementById("phoneTab")
+        .classList.add("active");
 
-`;
+    document
+        .getElementById("emailTab")
+        .classList.remove("active");
+}
 
 
-    toast(
-        "Booking confirmed — test email + SMS logged."
+function fakeLogin() {
+
+    alert(
+        "Demo login successful.\n\n" +
+        "Production CRZ will use Supabase authentication."
     );
 
+    closeAuth();
 }
 
 
-/* =================================================
-   TEST EMAIL + SMS
-================================================= */
+function showSignup() {
 
-function sendTestNotifications(
-    booking
-) {
-
-    const timestamp =
-        new Date()
-            .toISOString();
-
-
-    /*
-    EMAIL
-    */
-
-    state.notifications.push({
-
-        id:
-            generateID(),
-
-        bookingId:
-            booking.id,
-
-        type:
-            "EMAIL",
-
-        to:
-            booking.userEmail,
-
-        status:
-            "Sent (Test)",
-
-        subject:
-            `CRZ booking confirmed · ${booking.id}`,
-
-        message:
-
-            `Your CRZ session is confirmed for ` +
-
-            `${formatDate(
-                booking.date
-            )} at ${booking.time}. ` +
-
-            `${booking.packageLabel}. ` +
-
-            `Total ${money(
-                booking.price
-            )}.`,
-
-        createdAt:
-            timestamp
-
-    });
-
-
-    /*
-    SMS
-    */
-
-    state.notifications.push({
-
-        id:
-            generateID(),
-
-        bookingId:
-            booking.id,
-
-        type:
-            "SMS",
-
-        to:
-            booking.phone,
-
-        status:
-            "Sent (Test)",
-
-        subject:
-            "CRZ booking confirmation",
-
-        message:
-
-            `CRZ: Booking ${booking.id} ` +
-
-            `confirmed. ` +
-
-            `${formatDate(
-                booking.date
-            )} ${booking.time}. ` +
-
-            `${money(
-                booking.price
-            )}.`,
-
-        createdAt:
-            timestamp
-
-    });
-
+    alert(
+        "Customer signup will use email + phone number in the production version."
+    );
 }
 
 
-/* =================================================
-   ACCOUNT
-================================================= */
+/* =========================================================
+   ADMIN
+   ========================================================= */
 
-function account() {
+const ADMIN_EMAIL =
+    "admin@crzstudio.in";
 
-    if (!state.user)
-        return login();
+const ADMIN_PASSWORD =
+    "CRZ@Admin2026!";
 
 
-    const bookings =
-        state.bookings
-            .filter(
-                booking =>
-                    booking.userEmail ===
-                    state.user.email
-            )
-            .reverse();
+function adminLogin() {
 
+    const email =
+        document.getElementById("adminEmail").value.trim();
 
-    return shell(`
+    const password =
+        document.getElementById("adminPassword").value;
 
-<section class="section">
+    const error =
+        document.getElementById("adminError");
 
-    <div class="account-head">
-
-        <div>
-
-            <span class="eyebrow">
-                MY CRZ
-            </span>
-
-
-            <h2>
-
-                ${esc(
-                    state.user.name
-                ).toUpperCase()}
-
-            </h2>
-
-
-            <p>
-
-                ${esc(
-                    state.user.email
-                )}
-
-                ·
-
-                ${esc(
-                    state.user.phone
-                )}
-
-            </p>
-
-        </div>
-
-
-        <button
-            class="btn"
-            onclick="
-                logout()
-            "
-        >
-
-            LOGOUT
-
-        </button>
-
-    </div>
-
-
-    <div
-        class="stats cards4"
-    >
-
-        <div>
-
-            <b>
-                ${bookings.length}
-            </b>
-
-            <small>
-                TOTAL BOOKINGS
-            </small>
-
-        </div>
-
-
-        <div>
-
-            <b>
-
-                ${
-                    bookings.filter(
-                        b =>
-                            b.bookingStatus ===
-                            "Confirmed"
-                    ).length
-                }
-
-            </b>
-
-            <small>
-                UPCOMING
-            </small>
-
-        </div>
-
-
-        <div>
-
-            <b>
-
-                ${
-                    bookings.filter(
-                        b =>
-                            b.bookingStatus ===
-                            "Completed"
-                    ).length
-                }
-
-            </b>
-
-            <small>
-                COMPLETED
-            </small>
-
-        </div>
-
-
-        <div>
-
-            <b>
-
-                ${money(
-                    bookings.reduce(
-                        (
-                            total,
-                            booking
-                        ) =>
-                            total +
-                            booking.price,
-                        0
-                    )
-                )}
-
-            </b>
-
-            <small>
-                SPEND
-            </small>
-
-        </div>
-
-    </div>
-
-
-    <div class="table-wrap">
-
-        <table>
-
-            <thead>
-
-                <tr>
-
-                    <th>
-                        BOOKING
-                    </th>
-
-                    <th>
-                        SESSION
-                    </th>
-
-                    <th>
-                        DATE
-                    </th>
-
-                    <th>
-                        PAYMENT
-                    </th>
-
-                    <th>
-                        STATUS
-                    </th>
-
-                </tr>
-
-            </thead>
-
-
-            <tbody>
-
-                ${
-                    bookings.length
-
-                    ?
-
-                    bookings
-                        .map(
-                            bookingRow
-                        )
-                        .join("")
-
-                    :
-
-                    `
-
-<tr>
-
-<td
-    colspan="5"
-    class="empty"
->
-
-    No bookings yet.
-
-</td>
-
-</tr>
-
-`
-                }
-
-            </tbody>
-
-        </table>
-
-    </div>
-
-</section>
-
-`);
-
-}
-
-
-/* =================================================
-   BOOKING ROW
-================================================= */
-
-function bookingRow(
-    booking
-) {
-
-    return `
-
-<tr>
-
-<td>
-
-    <b>
-        ${esc(
-            booking.id
-        )}
-    </b>
-
-    <small>
-        ${esc(
-            booking.userEmail
-        )}
-    </small>
-
-</td>
-
-
-<td>
-
-    ${esc(
-        booking.packageLabel
-    )}
-
-</td>
-
-
-<td>
-
-    ${formatDate(
-        booking.date
-    )}
-
-    <small>
-        ${booking.time}
-    </small>
-
-</td>
-
-
-<td>
-
-    ${money(
-        booking.price
-    )}
-
-    <small>
-        ${esc(
-            booking.paymentMethod
-        )}
-    </small>
-
-</td>
-
-
-<td>
-
-    <span
-        class="
-            status
-            ${booking.bookingStatus.toLowerCase()}
-        "
-    >
-
-        ${esc(
-            booking.bookingStatus
-        )}
-
-    </span>
-
-</td>
-
-</tr>
-
-`;
-
-}
-
-
-/* =================================================
-   ADMIN DASHBOARD
-================================================= */
-
-function admin() {
 
     if (
-        state.user?.email !==
-        ADMIN_EMAIL
+        email === ADMIN_EMAIL &&
+        password === ADMIN_PASSWORD
     ) {
 
-        return shell(`
+        document
+            .getElementById("adminModal")
+            .classList.remove("show");
 
-<section class="auth">
+        document
+            .getElementById("adminDashboard")
+            .classList.remove("hidden");
 
-    <div class="auth-card">
+        document
+            .getElementById("app")
+            .querySelectorAll(
+                "body > *"
+            );
 
-        <h2>
-            ACCESS DENIED.
-        </h2>
+        updateAdminDashboard();
 
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
 
-        <p>
+    } else {
 
-            Admin access is restricted
-            to the configured admin email.
-
-        </p>
-
-    </div>
-
-</section>
-
-`);
+        error.innerHTML = `
+            <div style="
+                color:#d96b6b;
+                font-size:11px;
+                margin-top:15px;
+            ">
+                Invalid administrator credentials.
+            </div>
+        `;
 
     }
+}
 
 
-    const bookings =
-        [
-            ...state.bookings
-        ]
-        .sort(
-            (a, b) =>
-                (
-                    a.date +
-                    a.time
-                )
-                .localeCompare(
-                    b.date +
-                    b.time
-                )
+function logoutAdmin() {
+
+    document
+        .getElementById("adminDashboard")
+        .classList.add("hidden");
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+
+/* =========================================================
+   ADMIN DASHBOARD
+   ========================================================= */
+
+function updateAdminDashboard() {
+
+    updateAdminStats();
+
+    renderAdminBookings();
+
+    renderBlockedSlots();
+
+    document.getElementById(
+        "adminDate"
+    ).textContent =
+        new Date().toLocaleDateString(
+            "en-IN",
+            {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric"
+            }
         );
+}
+
+
+function updateAdminStats() {
+
+    const today =
+        new Date().toISOString().split("T")[0];
+
+    const todayCount =
+        bookings.filter(
+            b =>
+                b.date === today &&
+                b.status !== "cancelled"
+        ).length;
+
+
+    const upcoming =
+        bookings.filter(
+            b =>
+                b.status === "upcoming"
+        ).length;
+
+
+    const completed =
+        bookings.filter(
+            b =>
+                b.status === "completed"
+        ).length;
 
 
     const revenue =
         bookings
             .filter(
-                booking =>
-                    booking.paymentStatus ===
-                    "Paid"
+                b =>
+                    b.paymentStatus === "paid"
             )
             .reduce(
-                (
-                    total,
-                    booking
-                ) =>
-                    total +
-                    booking.price,
+                (sum, b) =>
+                    sum + Number(b.price),
                 0
             );
 
 
-    const today =
-        bookings.filter(
-            booking =>
-                booking.date ===
-                todayISO()
-        );
-
-
-    const tomorrow =
-        bookings.filter(
-            booking =>
-                booking.date ===
-                addDays(1)
-        );
-
-
-    const future =
-        bookings.filter(
-            booking =>
-
-                booking.date >
-                    todayISO() &&
-
-                booking.bookingStatus ===
-                    "Confirmed"
-        );
-
-
-    const completed =
-        bookings.filter(
-            booking =>
-                booking.bookingStatus ===
-                "Completed"
-        );
-
-
-    const refunds =
-        bookings.filter(
-            booking =>
-                booking.refundStatus !==
-                "Not Requested"
-        );
-
-
-    let content = "";
-
-
-    /* =================================================
-       ADMIN TABS
-    ================================================= */
-
-    switch (
-        state.adminTab
-    ) {
-
-
-        /* ---------------------------------------------
-           BOOKINGS
-        --------------------------------------------- */
-
-        case "bookings":
-
-            content = `
-
-<div class="table-wrap">
-
-<table>
-
-<thead>
-
-<tr>
-
-<th>
-    ID / CUSTOMER
-</th>
-
-<th>
-    SESSION
-</th>
-
-<th>
-    DATE
-</th>
-
-<th>
-    PAYMENT
-</th>
-
-<th>
-    STATUS
-</th>
-
-<th>
-    ACTIONS
-</th>
-
-</tr>
-
-</thead>
-
-
-<tbody>
-
-${
-    bookings.length
-
-    ?
-
-    bookings
-        .map(
-            booking => `
-
-<tr>
-
-<td>
-
-    <b>
-        ${esc(
-            booking.id
-        )}
-    </b>
-
-    <small>
-        ${esc(
-            booking.userName
-        )}
-        <br>
-        ${esc(
-            booking.userEmail
-        )}
-    </small>
-
-</td>
-
-
-<td>
-
-    ${esc(
-        booking.packageLabel
-    )}
-
-</td>
-
-
-<td>
-
-    ${formatDate(
-        booking.date
-    )}
-
-    <small>
-        ${booking.time}
-    </small>
-
-</td>
-
-
-<td>
-
-    ${money(
-        booking.price
-    )}
-
-    <small>
-        ${esc(
-            booking.paymentMethod
-        )}
-    </small>
-
-</td>
-
-
-<td>
-
-    <span
-        class="
-            status
-            ${booking.bookingStatus.toLowerCase()}
-        "
-    >
-
-        ${esc(
-            booking.bookingStatus
-        )}
-
-    </span>
-
-</td>
-
-
-<td>
-
-    <button
-        class="mini"
-        onclick="
-            completeBooking(
-                '${booking.id}'
-            )
-        "
-    >
-
-        Complete
-
-    </button>
-
-
-    <button
-        class="mini danger"
-        onclick="
-            refund(
-                '${booking.id}'
-            )
-        "
-    >
-
-        Refund
-
-    </button>
-
-</td>
-
-</tr>
-
-`
-        )
-        .join("")
-
-    :
-
-    `
-
-<tr>
-
-<td
-    colspan="6"
-    class="empty"
->
-
-    No bookings.
-
-</td>
-
-</tr>
-
-`
+    document.getElementById(
+        "todayBookings"
+    ).textContent = todayCount;
+
+    document.getElementById(
+        "upcomingBookings"
+    ).textContent = upcoming;
+
+    document.getElementById(
+        "completedBookings"
+    ).textContent = completed;
+
+    document.getElementById(
+        "totalRevenue"
+    ).textContent =
+        "₹" + revenue.toLocaleString("en-IN");
 }
 
-</tbody>
 
-</table>
+/* =========================================================
+   ADMIN BOOKINGS
+   ========================================================= */
 
-</div>
+function renderAdminBookings() {
 
-`;
+    const container =
+        document.getElementById("adminBookings");
 
-            break;
+    if (!container) return;
 
+    const filter =
+        document.getElementById(
+            "bookingFilter"
+        ).value;
 
-        /* ---------------------------------------------
-           CALENDAR
-        --------------------------------------------- */
 
-        case "calendar":
+    let filtered = [...bookings];
 
-            content = `
 
-<div class="grid3">
+    if (filter !== "all") {
 
-<article>
-
-    <b>
-        TODAY
-    </b>
-
-    <h3>
-        ${today.length}
-    </h3>
-
-
-    <p>
-
-        ${
-            today
-                .map(
-                    booking =>
-                        esc(
-                            booking.time
-                        ) +
-                        " · " +
-                        esc(
-                            booking.packageLabel
-                        )
-                )
-                .join("<br>")
-
-            ||
-
-            "No sessions"
-        }
-
-    </p>
-
-</article>
-
-
-<article>
-
-    <b>
-        TOMORROW
-    </b>
-
-    <h3>
-        ${tomorrow.length}
-    </h3>
-
-
-    <p>
-
-        ${
-            tomorrow
-                .map(
-                    booking =>
-                        esc(
-                            booking.time
-                        ) +
-                        " · " +
-                        esc(
-                            booking.packageLabel
-                        )
-                )
-                .join("<br>")
-
-            ||
-
-            "No sessions"
-        }
-
-    </p>
-
-</article>
-
-
-<article>
-
-    <b>
-        FUTURE
-    </b>
-
-    <h3>
-        ${future.length}
-    </h3>
-
-
-    <p>
-        Confirmed future bookings.
-    </p>
-
-</article>
-
-</div>
-
-`;
-
-            break;
-
-
-        /* ---------------------------------------------
-           CUSTOMERS
-        --------------------------------------------- */
-
-        case "customers": {
-
-            const customers =
-                [
-                    ...new Map(
-                        bookings.map(
-                            booking => [
-
-                                booking.userEmail,
-
-                                {
-                                    name:
-                                        booking.userName,
-
-                                    email:
-                                        booking.userEmail,
-
-                                    phone:
-                                        booking.phone
-
-                                }
-
-                            ]
-                        )
-                    ).values()
-                ];
-
-
-            content = `
-
-<div class="table-wrap">
-
-<table>
-
-<thead>
-
-<tr>
-
-<th>
-    NAME
-</th>
-
-<th>
-    EMAIL
-</th>
-
-<th>
-    PHONE
-</th>
-
-<th>
-    BOOKINGS
-</th>
-
-</tr>
-
-</thead>
-
-
-<tbody>
-
-${
-    customers
-        .map(
-            customer => `
-
-<tr>
-
-<td>
-    ${esc(
-        customer.name
-    )}
-</td>
-
-<td>
-    ${esc(
-        customer.email
-    )}
-</td>
-
-<td>
-    ${esc(
-        customer.phone
-    )}
-</td>
-
-<td>
-
-    ${
-        bookings.filter(
-            booking =>
-                booking.userEmail ===
-                customer.email
-        ).length
-    }
-
-</td>
-
-</tr>
-
-`
-        )
-        .join("")
-
-    ||
-
-    `
-
-<tr>
-
-<td colspan="4">
-    No customers.
-</td>
-
-</tr>
-
-`
-}
-
-</tbody>
-
-</table>
-
-</div>
-
-`;
-
-            break;
-
-        }
-
-
-        /* ---------------------------------------------
-           RECORDINGS
-        --------------------------------------------- */
-
-        case "recordings":
-
-            content = `
-
-<div class="queue">
-
-${
-    bookings
-        .filter(
-            booking =>
-                booking.recordingStatus !==
-                "None"
-        )
-        .map(
-            booking => `
-
-<article>
-
-    <b>
-        ${esc(
-            booking.id
-        )}
-    </b>
-
-    <span>
-        ${esc(
-            booking.packageLabel
-        )}
-    </span>
-
-    <small>
-        ${esc(
-            booking.recordingStatus
-        )}
-    </small>
-
-</article>
-
-`
-        )
-        .join("")
-
-    ||
-
-    `
-    <p class="empty">
-        No recording jobs.
-    </p>
-    `
-}
-
-</div>
-
-`;
-
-            break;
-
-
-        /* ---------------------------------------------
-           EDITING
-        --------------------------------------------- */
-
-        case "editing":
-
-            content = `
-
-<div class="queue">
-
-${
-    bookings
-        .filter(
-            booking =>
-                booking.editingStatus ===
-                "Queued"
-        )
-        .map(
-            booking => `
-
-<article>
-
-    <b>
-        ${esc(
-            booking.id
-        )}
-    </b>
-
-    <span>
-        ${esc(
-            booking.userName
-        )}
-    </span>
-
-    <small>
-
-        Queued ·
-        7–10 business days
-
-    </small>
-
-</article>
-
-`
-        )
-        .join("")
-
-    ||
-
-    `
-    <p class="empty">
-        No editing jobs.
-    </p>
-    `
-}
-
-</div>
-
-`;
-
-            break;
-
-
-        /* ---------------------------------------------
-           REFUNDS
-        --------------------------------------------- */
-
-        case "refunds":
-
-            content = `
-
-<div class="table-wrap">
-
-<table>
-
-<thead>
-
-<tr>
-
-<th>
-    BOOKING
-</th>
-
-<th>
-    AMOUNT
-</th>
-
-<th>
-    STATUS
-</th>
-
-</tr>
-
-</thead>
-
-
-<tbody>
-
-${
-    refunds
-        .map(
-            booking => `
-
-<tr>
-
-<td>
-    ${esc(
-        booking.id
-    )}
-</td>
-
-<td>
-    ${money(
-        booking.price
-    )}
-</td>
-
-<td>
-    ${esc(
-        booking.refundStatus
-    )}
-</td>
-
-</tr>
-
-`
-        )
-        .join("")
-
-    ||
-
-    `
-
-<tr>
-
-<td colspan="3">
-    No refunds.
-</td>
-
-</tr>
-
-`
-}
-
-</tbody>
-
-</table>
-
-</div>
-
-`;
-
-            break;
-
-
-        /* ---------------------------------------------
-           NOTIFICATIONS
-        --------------------------------------------- */
-
-        case "notifications":
-
-            content = `
-
-<div class="table-wrap">
-
-<table>
-
-<thead>
-
-<tr>
-
-<th>
-    TYPE
-</th>
-
-<th>
-    TO
-</th>
-
-<th>
-    BOOKING
-</th>
-
-<th>
-    STATUS
-</th>
-
-<th>
-    TIME
-</th>
-
-</tr>
-
-</thead>
-
-
-<tbody>
-
-${
-    state.notifications
-        .slice()
-        .reverse()
-        .map(
-            notification => `
-
-<tr>
-
-<td>
-
-    ${esc(
-        notification.type
-    )}
-
-</td>
-
-
-<td>
-
-    ${esc(
-        notification.to
-    )}
-
-</td>
-
-
-<td>
-
-    ${esc(
-        notification.bookingId
-    )}
-
-</td>
-
-
-<td>
-
-<span
-    class="
-        status
-        completed
-    "
->
-
-    ${esc(
-        notification.status
-    )}
-
-</span>
-
-</td>
-
-
-<td>
-
-    ${new Date(
-        notification.createdAt
-    ).toLocaleString(
-        "en-IN"
-    )}
-
-</td>
-
-</tr>
-
-`
-        )
-        .join("")
-
-    ||
-
-    `
-
-<tr>
-
-<td colspan="5">
-    No notifications.
-</td>
-
-</tr>
-
-`
-}
-
-</tbody>
-
-</table>
-
-</div>
-
-`;
-
-            break;
-
-
-        /* ---------------------------------------------
-           OVERVIEW
-        --------------------------------------------- */
-
-        default:
-
-            content = `
-
-<div class="stats cards4">
-
-<div>
-
-    <b>
-        ${bookings.length}
-    </b>
-
-    <small>
-        TOTAL BOOKINGS
-    </small>
-
-</div>
-
-
-<div>
-
-    <b>
-        ${today.length}
-    </b>
-
-    <small>
-        TODAY
-    </small>
-
-</div>
-
-
-<div>
-
-    <b>
-        ${future.length}
-    </b>
-
-    <small>
-        FUTURE PENDING
-    </small>
-
-</div>
-
-
-<div>
-
-    <b>
-        ${money(revenue)}
-    </b>
-
-    <small>
-        REVENUE
-    </small>
-
-</div>
-
-</div>
-
-
-<div class="grid3">
-
-<article>
-
-    <b>
-        COMPLETED
-    </b>
-
-    <h3>
-        ${completed.length}
-    </h3>
-
-</article>
-
-
-<article>
-
-    <b>
-        REFUNDS
-    </b>
-
-    <h3>
-        ${refunds.length}
-    </h3>
-
-</article>
-
-
-<article>
-
-    <b>
-        NOTIFICATIONS
-    </b>
-
-    <h3>
-        ${state.notifications.length}
-    </h3>
-
-    <a
-        href="#admin?notifications"
-        onclick="
-            adminTab('notifications')
-        "
-    >
-
-        View test email/SMS log
-
-    </a>
-
-</article>
-
-</div>
-
-`;
+        filtered =
+            filtered.filter(
+                booking =>
+                    booking.status === filter
+            );
 
     }
 
 
-    return shell(`
+    filtered.sort(
+        (a, b) =>
+            new Date(a.date + "T" + a.time) -
+            new Date(b.date + "T" + b.time)
+    );
 
-<section class="admin">
 
-    <div class="admin-top">
+    if (filtered.length === 0) {
 
-        <div>
+        container.innerHTML = `
+            <div style="
+                padding:30px;
+                color:#555;
+                text-align:center;
+                font-size:11px;
+            ">
+                No bookings found.
+            </div>
+        `;
 
-            <span class="eyebrow">
-                CRZ CONTROL
-            </span>
+        return;
+    }
 
-            <h2>
-                ADMIN DASHBOARD
-            </h2>
+
+    let html = `
+
+        <div class="booking-row header">
+
+            <span>BOOKING</span>
+            <span>DATE</span>
+            <span>PACKAGE</span>
+            <span>PAYMENT</span>
+            <span>STATUS</span>
 
         </div>
 
+    `;
 
-        <span class="admin-pill">
 
-            ${esc(
-                ADMIN_EMAIL
-            )}
+    filtered.forEach(booking => {
 
-        </span>
+        html += `
 
-    </div>
+            <div class="booking-row">
 
+                <span>
+                    ${booking.id}
+                </span>
 
-    <div class="admin-layout">
+                <span>
+                    ${formatDate(booking.date)}
+                    <br>
+                    ${formatTime(booking.time)}
+                </span>
 
+                <span>
+                    ${booking.package}
+                </span>
 
-        <aside class="side">
+                <span>
+                    ₹${booking.price}
+                </span>
 
-            <button
-                class="${
-                    state.adminTab ===
-                    "overview"
-                        ? "active"
-                        : ""
-                }"
-                onclick="
-                    adminTab('overview')
-                "
-            >
-                Overview
-            </button>
+                <span class="booking-status">
+                    ${booking.status.toUpperCase()}
+                </span>
 
+            </div>
 
-            <button
-                class="${
-                    state.adminTab ===
-                    "bookings"
-                        ? "active"
-                        : ""
-                }"
-                onclick="
-                    adminTab('bookings')
-                "
-            >
-                Bookings
-            </button>
-
-
-            <button
-                class="${
-                    state.adminTab ===
-                    "calendar"
-                        ? "active"
-                        : ""
-                }"
-                onclick="
-                    adminTab('calendar')
-                "
-            >
-                Calendar
-            </button>
-
-
-            <button
-                class="${
-                    state.adminTab ===
-                    "customers"
-                        ? "active"
-                        : ""
-                }"
-                onclick="
-                    adminTab('customers')
-                "
-            >
-                Customers
-            </button>
-
-
-            <button
-                class="${
-                    state.adminTab ===
-                    "recordings"
-                        ? "active"
-                        : ""
-                }"
-                onclick="
-                    adminTab('recordings')
-                "
-            >
-                Recordings
-            </button>
-
-
-            <button
-                class="${
-                    state.adminTab ===
-                    "editing"
-                        ? "active"
-                        : ""
-                }"
-                onclick="
-                    adminTab('editing')
-                "
-            >
-                Editing Queue
-            </button>
-
-
-            <button
-                class="${
-                    state.adminTab ===
-                    "refunds"
-                        ? "active"
-                        : ""
-                }"
-                onclick="
-                    adminTab('refunds')
-                "
-            >
-                Refunds
-            </button>
-
-
-            <button
-                class="${
-                    state.adminTab ===
-                    "notifications"
-                        ? "active"
-                        : ""
-                }"
-                onclick="
-                    adminTab('notifications')
-                "
-            >
-                Email / SMS
-            </button>
-
-        </aside>
-
-
-        <main class="admin-main">
-
-            ${content}
-
-        </main>
-
-    </div>
-
-</section>
-
-`);
-
-}
-
-
-/* =================================================
-   ADMIN TAB
-================================================= */
-
-function adminTab(tab) {
-
-    state.adminTab =
-        tab;
-
-    save();
-
-    render();
-
-}
-
-
-/* =================================================
-   COMPLETE BOOKING
-================================================= */
-
-function completeBooking(
-    bookingID
-) {
-
-    const booking =
-        state.bookings.find(
-            booking =>
-                booking.id ===
-                bookingID
-        );
-
-
-    if (!booking)
-        return;
-
-
-    booking.bookingStatus =
-        "Completed";
-
-
-    save();
-
-    render();
-
-    toast(
-        "Booking marked completed."
-    );
-
-}
-
-
-/* =================================================
-   REFUND
-================================================= */
-
-function refund(
-    bookingID
-) {
-
-    const booking =
-        state.bookings.find(
-            item =>
-                item.id ===
-                bookingID
-        );
-
-
-    if (!booking)
-        return;
-
-
-    booking.refundStatus =
-        "Refund Initiated";
-
-
-    save();
-
-    render();
-
-    toast(
-        "Refund initiated (demo)."
-    );
-
-
-    setTimeout(
-        () => {
-
-            const updated =
-                state.bookings.find(
-                    item =>
-                        item.id ===
-                        bookingID
-                );
-
-
-            if (!updated)
-                return;
-
-
-            updated.refundStatus =
-                "Refund Completed";
-
-
-            save();
-
-            render();
-
-        },
-        1200
-    );
-
-}
-
-
-/* =================================================
-   SIGNUP
-================================================= */
-
-function signupSubmit(
-    event
-) {
-
-    event.preventDefault();
-
-
-    const name =
-        $("#signupName")
-            .value
-            .trim();
-
-
-    const email =
-        $("#signupEmail")
-            .value
-            .trim()
-            .toLowerCase();
-
-
-    const phone =
-        $("#signupPhone")
-            .value
-            .trim();
-
-
-    const password =
-        $("#signupPass")
-            .value;
-
-
-    if (
-        state.users.some(
-            user =>
-                user.email ===
-                email
-        )
-        ||
-        email ===
-        ADMIN_EMAIL
-    ) {
-
-        toast(
-            "Email already registered."
-        );
-
-        return;
-
-    }
-
-
-    state.users.push({
-
-        name,
-
-        email,
-
-        phone,
-
-        pass:
-            password
+        `;
 
     });
 
 
-    state.user = {
-
-        name,
-
-        email,
-
-        phone
-
-    };
-
-
-    save();
-
-
-    toast(
-        "Account created."
-    );
-
-
-    go("book");
-
+    container.innerHTML = html;
 }
 
 
-/* =================================================
-   LOGIN
-================================================= */
+/* =========================================================
+   BLOCK TIME
+   ========================================================= */
 
-function loginSubmit(
-    event
-) {
+function blockTime() {
 
-    event.preventDefault();
+    const date =
+        document.getElementById(
+            "blockDate"
+        ).value;
+
+    const start =
+        document.getElementById(
+            "blockStart"
+        ).value;
+
+    const end =
+        document.getElementById(
+            "blockEnd"
+        ).value;
+
+    const reason =
+        document.getElementById(
+            "blockReason"
+        ).value.trim();
 
 
-    const email =
-        $("#loginEmail")
-            .value
-            .trim()
-            .toLowerCase();
+    if (!date || !start || !end) {
+
+        alert(
+            "Please select a date and time."
+        );
+
+        return;
+    }
 
 
-    const password =
-        $("#loginPass")
-            .value;
+    if (start >= end) {
+
+        alert(
+            "End time must be after start time."
+        );
+
+        return;
+    }
 
 
     /*
-    ADMIN DEMO
+        IMPORTANT:
+
+        Do NOT allow the admin to block an already
+        booked slot.
     */
 
-    if (
-        email ===
-        ADMIN_EMAIL
-    ) {
-
-        state.user = {
-
-            name:
-                "CRZ Admin",
-
-            email:
-                ADMIN_EMAIL,
-
-            phone:
-                "+91 00000 00000"
-
-        };
-
-
-        save();
-
-        go("admin");
-
-        return;
-
-    }
-
-
-    const user =
-        state.users.find(
-            item =>
-                item.email ===
-                    email &&
-
-                item.pass ===
-                    password
+    const booked =
+        bookings.some(
+            booking =>
+                booking.date === date &&
+                booking.time === start &&
+                booking.status !== "cancelled"
         );
 
 
-    if (!user) {
+    if (booked) {
 
-        toast(
-            "Invalid email or password."
+        alert(
+            "This slot already has a confirmed booking. " +
+            "Cancel the booking first if you need to make it unavailable."
         );
 
         return;
-
     }
 
 
-    state.user = {
+    /*
+        For each hour between start and end,
+        create a blocked slot.
+    */
 
-        name:
-            user.name,
+    let current =
+        Number(start.split(":")[0]);
 
-        email:
-            user.email,
-
-        phone:
-            user.phone
-
-    };
+    const ending =
+        Number(end.split(":")[0]);
 
 
-    save();
+    while (current < ending) {
+
+        const time =
+            String(current).padStart(2, "0") +
+            ":00";
 
 
-    go("account");
+        const alreadyBlocked =
+            blockedSlots.some(
+                blocked =>
+                    blocked.date === date &&
+                    blocked.time === time
+            );
 
+
+        if (!alreadyBlocked) {
+
+            blockedSlots.push({
+
+                date: date,
+
+                time: time,
+
+                reason:
+                    reason ||
+                    "Admin blocked",
+
+                createdAt:
+                    new Date().toISOString()
+
+            });
+
+        }
+
+        current++;
+    }
+
+
+    saveData();
+
+    renderBlockedSlots();
+
+    loadSlots();
+
+
+    document.getElementById(
+        "blockReason"
+    ).value = "";
+
+
+    alert(
+        `${formatDate(date)} ${formatTime(start)}–${formatTime(end)} has been blocked.`
+    );
 }
 
 
-/* =================================================
-   LOGOUT
-================================================= */
+/* =========================================================
+   BLOCKED SLOT LIST
+   ========================================================= */
 
-function logout() {
+function renderBlockedSlots() {
 
-    state.user =
-        null;
+    const container =
+        document.getElementById(
+            "blockedSlots"
+        );
 
-    save();
-
-    go("home");
-
-}
+    if (!container) return;
 
 
-/* =================================================
-   CLOSE MODALS
-================================================= */
+    if (blockedSlots.length === 0) {
 
-function closeModal() {
+        container.innerHTML = `
+            <div style="
+                color:#555;
+                font-size:11px;
+                padding:15px 0;
+            ">
+                No blocked slots.
+            </div>
+        `;
 
-    document
-        .querySelectorAll(
-            ".modal"
+        return;
+    }
+
+
+    let html = "";
+
+
+    blockedSlots
+        .sort(
+            (a, b) =>
+                new Date(a.date + "T" + a.time) -
+                new Date(b.date + "T" + b.time)
         )
         .forEach(
-            modal =>
-                modal.remove()
+            (blocked, index) => {
+
+                html += `
+
+                    <div class="blocked-row">
+
+                        <div>
+
+                            <strong>
+                                ${formatDate(blocked.date)}
+                            </strong>
+
+                            <br>
+
+                            <span style="color:#666">
+                                ${formatTime(blocked.time)}
+                                —
+                                ${blocked.reason}
+                            </span>
+
+                        </div>
+
+                        <button
+                            onclick="unblockTime(${index})"
+                        >
+                            UNBLOCK
+                        </button>
+
+                    </div>
+
+                `;
+
+            }
         );
 
+
+    container.innerHTML = html;
 }
 
 
-/* =================================================
-   ROUTER
-================================================= */
+/* =========================================================
+   UNBLOCK
+   ========================================================= */
 
-function render() {
+function unblockTime(index) {
 
-    const route =
-        location.hash
-            .slice(1) ||
-        "home";
+    const blocked =
+        blockedSlots[index];
 
-
-    let html;
+    if (!blocked) return;
 
 
-    if (
-        route ===
-        "home"
-    ) {
-
-        html =
-            home();
-
-    }
-
-    else if (
-        route ===
-        "studio"
-    ) {
-
-        html =
-            studio();
-
-    }
-
-    else if (
-        route ===
-        "pricing"
-    ) {
-
-        html =
-            pricing();
-
-    }
-
-    else if (
-        route ===
-        "book"
-    ) {
-
-        html =
-            book();
-
-    }
-
-    else if (
-        route ===
-        "login"
-    ) {
-
-        html =
-            login();
-
-    }
-
-    else if (
-        route ===
-        "signup"
-    ) {
-
-        html =
-            signup();
-
-    }
-
-    else if (
-        route ===
-        "account"
-    ) {
-
-        html =
-            account();
-
-    }
-
-    else if (
-        route.startsWith(
-            "admin"
-        )
-    ) {
-
-        html =
-            admin();
-
-    }
-
-    else {
-
-        html =
-            home();
-
-    }
+    const confirmed =
+        confirm(
+            `Unblock ${formatDate(blocked.date)} ${formatTime(blocked.time)}?`
+        );
 
 
-    $("#app").innerHTML =
-        html;
+    if (!confirmed) return;
 
+
+    blockedSlots.splice(index, 1);
+
+    saveData();
+
+    renderBlockedSlots();
+
+    loadSlots();
 }
 
 
-/* =================================================
-   GLOBAL EVENTS
-================================================= */
+/* =========================================================
+   ADMIN ACCESS
+   ========================================================= */
 
-window.addEventListener(
-    "hashchange",
-    render
+/*
+    Demo shortcut:
+
+    Press CTRL + SHIFT + A
+
+    Production version should NOT expose this.
+*/
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.ctrlKey &&
+            event.shiftKey &&
+            event.key.toLowerCase() === "a"
+        ) {
+
+            document
+                .getElementById("adminModal")
+                .classList.add("show");
+
+        }
+
+    }
 );
 
 
-/* =================================================
-   GLOBAL FUNCTIONS
-================================================= */
+/* =========================================================
+   INITIALIZATION
+   ========================================================= */
 
-window.selectPackage =
-    selectPackage;
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
 
-window.openCheckout =
-    openCheckout;
+        const date =
+            document.getElementById(
+                "blockDate"
+            );
 
-window.setMethod =
-    setMethod;
+        if (date) {
 
-window.demoPay =
-    demoPay;
+            date.min =
+                new Date()
+                    .toISOString()
+                    .split("T")[0];
 
-window.closeModal =
-    closeModal;
+        }
 
-window.loginSubmit =
-    loginSubmit;
+        loadSlots();
 
-window.signupSubmit =
-    signupSubmit;
-
-window.logout =
-    logout;
-
-window.adminTab =
-    adminTab;
-
-window.completeBooking =
-    completeBooking;
-
-window.refund =
-    refund;
-
-
-/* =================================================
-   START
-================================================= */
-
-render();
+    }
+);
