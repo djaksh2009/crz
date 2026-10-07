@@ -1,405 +1,197 @@
 /* =========================================================
-   CRZ DJ STUDIO
-   FRONTEND DEMO / V1
-   ========================================================= */
+   CRZ — FRONTEND ENGINE
+========================================================= */
 
 
-/* =========================================================
-   PACKAGES
-   ========================================================= */
+/* -----------------------------
+   STORAGE
+----------------------------- */
 
-const packages = {
-    practice: {
-        name: "Practice Only",
-        price: 250
-    },
-
-    audio: {
-        name: "Practice + Audio",
-        price: 400
-    },
-
-    video: {
-        name: "Practice + Audio + Video",
-        price: 500
-    },
-
-    raw: {
-        name: "Raw Recording",
-        price: 600
-    },
-
-    edited: {
-        name: "Edited Recording",
-        price: 1500
-    }
-};
-
-
-/* =========================================================
-   DEMO DATA
-   ========================================================= */
-
-let bookings = JSON.parse(
-    localStorage.getItem("crzBookings") || "[]"
-);
-
-let blockedSlots = JSON.parse(
-    localStorage.getItem("crzBlockedSlots") || "[]"
-);
-
-let selectedSlot = null;
-
-let selectedPackage =
-    document.getElementById("packageSelect")?.value || "practice";
-
-
-/* =========================================================
-   STUDIO HOURS
-   ========================================================= */
-
-const studioHours = [
-    "09:00",
-    "10:00",
-    "11:00",
-    "12:00",
-    "13:00",
-    "14:00",
-    "15:00",
-    "16:00",
-    "17:00",
-    "18:00",
-    "19:00",
-    "20:00"
-];
-
-
-/* =========================================================
-   UTILITIES
-   ========================================================= */
-
-function saveData() {
-
-    localStorage.setItem(
-        "crzBookings",
-        JSON.stringify(bookings)
+let bookings =
+    JSON.parse(
+        localStorage.getItem("crzBookings") || "[]"
     );
 
-    localStorage.setItem(
-        "crzBlockedSlots",
-        JSON.stringify(blockedSlots)
+
+let blockedSlots =
+    JSON.parse(
+        localStorage.getItem("crzBlocked") || "[]"
     );
-}
 
 
-function formatTime(time) {
+/* -----------------------------
+   DEFAULT ADMIN
+----------------------------- */
 
-    const [hour, minute] = time.split(":");
-
-    let h = Number(hour);
-
-    const suffix = h >= 12 ? "PM" : "AM";
-
-    h = h % 12;
-
-    if (h === 0) h = 12;
-
-    return `${h}:${minute} ${suffix}`;
-}
+const ADMIN_EMAIL = "admin@crzstudio.in";
+const ADMIN_PASSWORD = "CRZadmin2026";
 
 
-function formatDate(date) {
-
-    if (!date) return "";
-
-    const d = new Date(date + "T00:00:00");
-
-    return d.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric"
-    });
-}
-
-
-function generateBookingID() {
-
-    return "CRZ-" +
-        Math.floor(10000 + Math.random() * 90000);
-}
-
-
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
-
-function scrollToBooking() {
-
-    document
-        .getElementById("booking")
-        .scrollIntoView({
-            behavior: "smooth"
-        });
-}
-
-
-function scrollToSection(id) {
-
-    document
-        .getElementById(id)
-        .scrollIntoView({
-            behavior: "smooth"
-        });
-}
-
-
-/* =========================================================
-   PACKAGE SELECTION
-   ========================================================= */
-
-function startBooking(type) {
-
-    document.getElementById("packageSelect").value = type;
-
-    selectedPackage = type;
-
-    scrollToBooking();
-
-    loadSlots();
-}
-
-
-/* =========================================================
+/* -----------------------------
    DATE
-   ========================================================= */
+----------------------------- */
 
 const dateInput =
     document.getElementById("bookingDate");
 
-if (dateInput) {
 
-    const today =
-        new Date().toISOString().split("T")[0];
+const today =
+    new Date()
+        .toISOString()
+        .split("T")[0];
 
-    dateInput.min = today;
 
-    dateInput.value = today;
+dateInput.min = today;
 
-    loadSlots();
+
+/* -----------------------------
+   BOOKING PRICE
+----------------------------- */
+
+const serviceInput =
+    document.getElementById("bookingService");
+
+
+const totalDisplay =
+    document.getElementById("bookingTotal");
+
+
+serviceInput.addEventListener(
+    "change",
+    updateTotal
+);
+
+
+function updateTotal() {
+
+    const price =
+        Number(serviceInput.value || 0);
+
+    totalDisplay.textContent =
+        `₹${price.toLocaleString("en-IN")}`;
 }
 
 
-/* =========================================================
-   SLOT AVAILABILITY
-   ========================================================= */
+/* -----------------------------
+   SCROLL
+----------------------------- */
 
-function isSlotUnavailable(date, time) {
+function scrollToBooking() {
 
-    const bookingExists = bookings.some(
-        booking =>
-            booking.date === date &&
-            booking.time === time &&
-            booking.status !== "cancelled"
-    );
-
-    const blockedExists = blockedSlots.some(
-        blocked =>
-            blocked.date === date &&
-            blocked.time === time
-    );
-
-    return bookingExists || blockedExists;
+    document
+        .getElementById("book")
+        .scrollIntoView({
+            behavior: "smooth"
+        });
 }
 
 
-function loadSlots() {
+/* -----------------------------
+   CHECK SLOT
+----------------------------- */
+
+function slotIsUnavailable(date, time) {
+
+    return blockedSlots.some(slot =>
+        slot.date === date &&
+        slot.time === time
+    );
+}
+
+
+function slotAlreadyBooked(date, time) {
+
+    return bookings.some(booking =>
+        booking.date === date &&
+        booking.time === time &&
+        booking.status !== "cancelled"
+    );
+}
+
+
+/* -----------------------------
+   CREATE BOOKING
+----------------------------- */
+
+function createBooking() {
+
+    const name =
+        document
+            .getElementById("bookingName")
+            .value.trim();
+
+
+    const email =
+        document
+            .getElementById("bookingEmail")
+            .value.trim();
+
+
+    const phone =
+        document
+            .getElementById("bookingPhone")
+            .value.trim();
+
 
     const date =
-        document.getElementById("bookingDate")?.value;
+        document
+            .getElementById("bookingDate")
+            .value;
 
-    const slotsContainer =
-        document.getElementById("slots");
 
-    const paymentButton =
-        document.getElementById("continuePayment");
+    const time =
+        document
+            .getElementById("bookingTime")
+            .value;
 
-    if (!date) {
 
-        slotsContainer.innerHTML = `
-            <div class="slot-placeholder">
-                Select a date first.
-            </div>
-        `;
+    const service =
+        document
+            .getElementById("bookingService");
 
-        paymentButton.disabled = true;
+
+    const serviceName =
+        service.options[
+            service.selectedIndex
+        ]?.text || "";
+
+
+    const amount =
+        Number(service.value);
+
+
+    if (
+        !name ||
+        !email ||
+        !phone ||
+        !date ||
+        !time ||
+        !amount
+    ) {
+
+        alert(
+            "Please complete all booking details."
+        );
 
         return;
     }
 
-    slotsContainer.innerHTML = "";
 
-    selectedSlot = null;
-
-    paymentButton.disabled = true;
-
-    studioHours.forEach(time => {
-
-        const button =
-            document.createElement("button");
-
-        button.className = "slot";
-
-        button.textContent =
-            `${formatTime(time)} – ${formatTime(addHour(time))}`;
-
-        const unavailable =
-            isSlotUnavailable(date, time);
-
-        if (unavailable) {
-
-            button.classList.add("unavailable");
-
-            button.disabled = true;
-
-            button.textContent += "  •  UNAVAILABLE";
-
-        } else {
-
-            button.onclick = () => selectSlot(
-                button,
-                time
-            );
-
-        }
-
-        slotsContainer.appendChild(button);
-
-    });
-}
-
-
-function addHour(time) {
-
-    let [hour, minute] =
-        time.split(":").map(Number);
-
-    hour++;
-
-    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-}
-
-
-/* =========================================================
-   SELECT SLOT
-   ========================================================= */
-
-function selectSlot(button, time) {
-
-    document
-        .querySelectorAll(".slot")
-        .forEach(slot => {
-            slot.classList.remove("selected");
-        });
-
-    button.classList.add("selected");
-
-    selectedSlot = time;
-
-    document.getElementById(
-        "continuePayment"
-    ).disabled = false;
-}
-
-
-/* =========================================================
-   PAYMENT
-   ========================================================= */
-
-function continueToPayment() {
-
-    if (!selectedSlot) return;
-
-    const date =
-        document.getElementById("bookingDate").value;
-
-    selectedPackage =
-        document.getElementById("packageSelect").value;
-
-    const packageData =
-        packages[selectedPackage];
-
-    document.getElementById(
-        "paymentSummary"
-    ).innerHTML = `
-        <strong>${packageData.name}</strong><br>
-        ${formatDate(date)}<br>
-        ${formatTime(selectedSlot)}
-        – ${formatTime(addHour(selectedSlot))}<br>
-        <br>
-        <strong>₹${packageData.price} / hour</strong>
-    `;
-
-    document
-        .getElementById("paymentModal")
-        .classList.add("show");
-}
-
-
-function closePayment() {
-
-    document
-        .getElementById("paymentModal")
-        .classList.remove("show");
-}
-
-
-function selectPaymentMethod(button) {
-
-    document
-        .querySelectorAll(".payment-methods button")
-        .forEach(btn =>
-            btn.classList.remove("selected")
-        );
-
-    button.classList.add("selected");
-}
-
-
-/* =========================================================
-   PAYMENT DEMO
-   ========================================================= */
-
-function simulatePayment() {
-
-    if (!selectedSlot) return;
-
-    const date =
-        document.getElementById("bookingDate").value;
-
-    const packageData =
-        packages[
-            document.getElementById("packageSelect").value
-        ];
-
-    /*
-        DOUBLE-BOOKING CHECK
-
-        This is still performed immediately before
-        creating the booking.
-
-        In production this check MUST also happen
-        server-side/database-side.
-    */
-
-    if (isSlotUnavailable(date, selectedSlot)) {
+    if (slotIsUnavailable(date, time)) {
 
         alert(
-            "Sorry — this slot has just been taken. Please select another slot."
+            "This slot has been blocked by CRZ."
         );
 
-        closePayment();
+        return;
+    }
 
-        loadSlots();
+
+    if (slotAlreadyBooked(date, time)) {
+
+        alert(
+            "This slot has already been booked."
+        );
 
         return;
     }
@@ -407,190 +199,270 @@ function simulatePayment() {
 
     const booking = {
 
-        id: generateBookingID(),
+        id:
+            "CRZ-" +
+            Math.random()
+                .toString(36)
+                .substring(2, 8)
+                .toUpperCase(),
 
-        date: date,
+        name,
 
-        time: selectedSlot,
+        email,
 
-        package: packageData.name,
+        phone,
 
-        price: packageData.price,
+        date,
 
-        status: "upcoming",
+        time,
 
-        paymentStatus: "paid",
+        service: serviceName,
 
-        createdAt: new Date().toISOString(),
+        amount,
 
-        customer: {
-            name: "Demo Customer",
-            email: "customer@example.com",
-            phone: "+91 90000 00000"
-        }
+        status: "paid",
 
+        created:
+            new Date().toISOString()
     };
 
 
-    /*
-        PAYMENT CONFIRMED
-    */
-
-    console.log(
-        "EMAIL + SMS: PAYMENT CONFIRMED",
-        booking
-    );
-
-
-    /*
-        BOOKING CONFIRMED
-    */
-
     bookings.push(booking);
 
-    saveData();
 
-
-    console.log(
-        "EMAIL + SMS: BOOKING CONFIRMED",
-        booking
+    localStorage.setItem(
+        "crzBookings",
+        JSON.stringify(bookings)
     );
 
 
-    closePayment();
+    /*
+       PROTOTYPE PAYMENT
 
-    showBookingConfirmation(booking);
+       Replace this later with Razorpay.
+    */
 
-    loadSlots();
-
-    updateAdminStats();
-
+    showPaymentScreen(booking);
 }
 
 
-/* =========================================================
-   BOOKING CONFIRMATION
-   ========================================================= */
+/* -----------------------------
+   PAYMENT SCREEN
+----------------------------- */
 
-function showBookingConfirmation(booking) {
+function showPaymentScreen(booking) {
+
+    const paymentMethods = [
+
+        "UPI",
+
+        "Credit / Debit Card",
+
+        "Net Banking",
+
+        "Wallets"
+
+    ];
+
+
+    const method =
+        prompt(
+            `CRZ CHECKOUT\n\n` +
+            `Booking: ${booking.id}\n` +
+            `Amount: ₹${booking.amount}\n\n` +
+            `Choose payment method:\n\n` +
+            `1 — UPI\n` +
+            `2 — Card\n` +
+            `3 — Net Banking\n` +
+            `4 — Wallet`
+        );
+
+
+    if (
+        !["1","2","3","4"].includes(method)
+    ) {
+
+        /*
+           If they cancel, restore booking.
+        */
+
+        bookings =
+            bookings.filter(
+                b => b.id !== booking.id
+            );
+
+        localStorage.setItem(
+            "crzBookings",
+            JSON.stringify(bookings)
+        );
+
+        return;
+    }
+
+
+    booking.paymentMethod =
+        paymentMethods[
+            Number(method) - 1
+        ];
+
+
+    localStorage.setItem(
+        "crzBookings",
+        JSON.stringify(bookings)
+    );
+
 
     alert(
-        `CRZ BOOKING CONFIRMED\n\n` +
+        `✓ PAYMENT CONFIRMED\n\n` +
 
         `Booking ID: ${booking.id}\n` +
 
-        `Date: ${formatDate(booking.date)}\n` +
+        `Amount: ₹${booking.amount}\n` +
 
-        `Time: ${formatTime(booking.time)} – ${formatTime(addHour(booking.time))}\n\n` +
+        `Method: ${booking.paymentMethod}\n\n` +
 
-        `Payment: ₹${booking.price} PAID\n\n` +
+        `BOOKING CONFIRMED\n\n` +
 
-        `Payment confirmation and booking confirmation ` +
-        `will be sent by EMAIL + SMS in the production system.`
+        `In the production version, CRZ will now send:\n` +
+
+        `📧 Payment confirmed email\n` +
+
+        `📱 Payment confirmed SMS\n` +
+
+        `📧 Booking confirmed email\n` +
+
+        `📱 Booking confirmed SMS`
     );
+
+
+    updateDashboard();
 }
 
 
-/* =========================================================
-   AUTH
-   ========================================================= */
+/* -----------------------------
+   TEST NOTIFICATION
+----------------------------- */
 
-function openAuth() {
+async function sendTestNotification() {
+
+    const email =
+        document
+            .getElementById("bookingEmail")
+            .value.trim();
+
+
+    const phone =
+        document
+            .getElementById("bookingPhone")
+            .value.trim();
+
+
+    if (!email && !phone) {
+
+        alert(
+            "Enter your email and/or phone number in the booking form first."
+        );
+
+        return;
+    }
+
+
+    /*
+       IMPORTANT:
+
+       This calls your optional backend.
+
+       When you create server.js,
+       change this URL if necessary.
+    */
+
+    try {
+
+        const response =
+            await fetch(
+                "http://localhost:5000/api/test-notification",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        email,
+                        phone
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Notification failed"
+            );
+        }
+
+
+        alert(
+            "✓ TEST SENT\n\n" +
+            "Check your email and phone."
+        );
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "The notification server isn't running yet.\n\n" +
+
+            "The website itself is working.\n\n" +
+
+            "Start the CRZ notification backend to send real email/SMS."
+        );
+    }
+}
+
+
+/* -----------------------------
+   ADMIN LOGIN
+----------------------------- */
+
+function openAdminLogin() {
 
     document
-        .getElementById("authModal")
+        .getElementById("adminModal")
         .classList.add("show");
 }
 
 
-function closeAuth() {
+function closeAdminLogin() {
 
     document
-        .getElementById("authModal")
+        .getElementById("adminModal")
         .classList.remove("show");
 }
-
-
-function showEmailLogin() {
-
-    document
-        .getElementById("emailLogin")
-        .classList.remove("hidden");
-
-    document
-        .getElementById("phoneLogin")
-        .classList.add("hidden");
-
-    document
-        .getElementById("emailTab")
-        .classList.add("active");
-
-    document
-        .getElementById("phoneTab")
-        .classList.remove("active");
-}
-
-
-function showPhoneLogin() {
-
-    document
-        .getElementById("emailLogin")
-        .classList.add("hidden");
-
-    document
-        .getElementById("phoneLogin")
-        .classList.remove("hidden");
-
-    document
-        .getElementById("phoneTab")
-        .classList.add("active");
-
-    document
-        .getElementById("emailTab")
-        .classList.remove("active");
-}
-
-
-function fakeLogin() {
-
-    alert(
-        "Demo login successful.\n\n" +
-        "Production CRZ will use Supabase authentication."
-    );
-
-    closeAuth();
-}
-
-
-function showSignup() {
-
-    alert(
-        "Customer signup will use email + phone number in the production version."
-    );
-}
-
-
-/* =========================================================
-   ADMIN
-   ========================================================= */
-
-const ADMIN_EMAIL =
-    "admin@crzstudio.in";
-
-const ADMIN_PASSWORD =
-    "CRZ@Admin2026!";
 
 
 function adminLogin() {
 
     const email =
-        document.getElementById("adminEmail").value.trim();
+        document
+            .getElementById("adminEmail")
+            .value.trim();
+
 
     const password =
-        document.getElementById("adminPassword").value;
-
-    const error =
-        document.getElementById("adminError");
+        document
+            .getElementById("adminPassword")
+            .value;
 
 
     if (
@@ -598,559 +470,410 @@ function adminLogin() {
         password === ADMIN_PASSWORD
     ) {
 
-        document
-            .getElementById("adminModal")
-            .classList.remove("show");
+        localStorage.setItem(
+            "crzAdmin",
+            "true"
+        );
+
+
+        closeAdminLogin();
+
 
         document
-            .getElementById("adminDashboard")
-            .classList.remove("hidden");
+            .getElementById("dashboard")
+            .classList.add("show");
 
-        document
-            .getElementById("app")
-            .querySelectorAll(
-                "body > *"
-            );
 
-        updateAdminDashboard();
-
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth"
-        });
+        updateDashboard();
 
     } else {
 
-        error.innerHTML = `
-            <div style="
-                color:#d96b6b;
-                font-size:11px;
-                margin-top:15px;
-            ">
-                Invalid administrator credentials.
-            </div>
-        `;
-
+        alert(
+            "Invalid admin credentials."
+        );
     }
 }
 
 
+/* -----------------------------
+   ADMIN LOGOUT
+----------------------------- */
+
 function logoutAdmin() {
 
+    localStorage.removeItem(
+        "crzAdmin"
+    );
+
+
     document
-        .getElementById("adminDashboard")
-        .classList.add("hidden");
-
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
+        .getElementById("dashboard")
+        .classList.remove("show");
 }
 
 
-/* =========================================================
-   ADMIN DASHBOARD
-   ========================================================= */
+/* -----------------------------
+   BLOCK TIME
+----------------------------- */
 
-function updateAdminDashboard() {
+function blockTime() {
 
-    updateAdminStats();
+    const date =
+        document
+            .getElementById("blockDate")
+            .value;
 
-    renderAdminBookings();
 
-    renderBlockedSlots();
+    const time =
+        document
+            .getElementById("blockTime")
+            .value;
 
-    document.getElementById(
-        "adminDate"
-    ).textContent =
-        new Date().toLocaleDateString(
-            "en-IN",
-            {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric"
-            }
+
+    const reason =
+        document
+            .getElementById("blockReason")
+            .value.trim();
+
+
+    if (!date || !time) {
+
+        alert(
+            "Select a date and time."
         );
+
+        return;
+    }
+
+
+    if (slotAlreadyBooked(date, time)) {
+
+        alert(
+            "A customer has already booked this slot."
+        );
+
+        return;
+    }
+
+
+    const blocked = {
+
+        id:
+            "BLK-" +
+            Date.now(),
+
+        date,
+
+        time,
+
+        reason:
+            reason || "Unavailable"
+    };
+
+
+    blockedSlots.push(blocked);
+
+
+    localStorage.setItem(
+        "crzBlocked",
+        JSON.stringify(blockedSlots)
+    );
+
+
+    document
+        .getElementById("blockReason")
+        .value = "";
+
+
+    updateDashboard();
+
+
+    alert(
+        "✓ Time slot blocked."
+    );
 }
 
 
-function updateAdminStats() {
+/* -----------------------------
+   REMOVE BLOCK
+----------------------------- */
+
+function removeBlock(id) {
+
+    blockedSlots =
+        blockedSlots.filter(
+            slot => slot.id !== id
+        );
+
+
+    localStorage.setItem(
+        "crzBlocked",
+        JSON.stringify(blockedSlots)
+    );
+
+
+    updateDashboard();
+}
+
+
+/* -----------------------------
+   DASHBOARD
+----------------------------- */
+
+function updateDashboard() {
 
     const today =
-        new Date().toISOString().split("T")[0];
+        new Date()
+            .toISOString()
+            .split("T")[0];
 
-    const todayCount =
+
+    const todayBookings =
         bookings.filter(
-            b =>
-                b.date === today &&
-                b.status !== "cancelled"
-        ).length;
+            b => b.date === today
+        );
 
 
-    const upcoming =
+    const futureBookings =
         bookings.filter(
-            b =>
-                b.status === "upcoming"
-        ).length;
+            b => b.date > today
+        );
 
 
     const completed =
         bookings.filter(
-            b =>
-                b.status === "completed"
-        ).length;
+            b => b.status === "completed"
+        );
 
 
     const revenue =
         bookings
             .filter(
-                b =>
-                    b.paymentStatus === "paid"
+                b => b.status !== "cancelled"
             )
             .reduce(
-                (sum, b) =>
-                    sum + Number(b.price),
+                (sum,b) =>
+                    sum + Number(b.amount),
                 0
             );
 
 
-    document.getElementById(
-        "todayBookings"
-    ).textContent = todayCount;
+    document
+        .getElementById("todayCount")
+        .textContent =
+            todayBookings.length;
 
-    document.getElementById(
-        "upcomingBookings"
-    ).textContent = upcoming;
 
-    document.getElementById(
-        "completedBookings"
-    ).textContent = completed;
+    document
+        .getElementById("futureCount")
+        .textContent =
+            futureBookings.length;
 
-    document.getElementById(
-        "totalRevenue"
-    ).textContent =
-        "₹" + revenue.toLocaleString("en-IN");
+
+    document
+        .getElementById("completedCount")
+        .textContent =
+            completed.length;
+
+
+    document
+        .getElementById("revenue")
+        .textContent =
+            `₹${revenue.toLocaleString("en-IN")}`;
+
+
+    renderBookings();
+
+    renderBlocked();
 }
 
 
-/* =========================================================
-   ADMIN BOOKINGS
-   ========================================================= */
+/* -----------------------------
+   RENDER BOOKINGS
+----------------------------- */
 
-function renderAdminBookings() {
+function renderBookings() {
 
     const container =
-        document.getElementById("adminBookings");
-
-    if (!container) return;
-
-    const filter =
-        document.getElementById(
-            "bookingFilter"
-        ).value;
+        document
+            .getElementById("bookingList");
 
 
-    let filtered = [...bookings];
+    if (!bookings.length) {
 
-
-    if (filter !== "all") {
-
-        filtered =
-            filtered.filter(
-                booking =>
-                    booking.status === filter
-            );
-
-    }
-
-
-    filtered.sort(
-        (a, b) =>
-            new Date(a.date + "T" + a.time) -
-            new Date(b.date + "T" + b.time)
-    );
-
-
-    if (filtered.length === 0) {
-
-        container.innerHTML = `
-            <div style="
-                padding:30px;
-                color:#555;
-                text-align:center;
-                font-size:11px;
-            ">
-                No bookings found.
-            </div>
-        `;
+        container.innerHTML =
+            `<p class="empty">
+                No bookings yet.
+            </p>`;
 
         return;
     }
 
 
-    let html = `
-
-        <div class="booking-row header">
-
-            <span>BOOKING</span>
-            <span>DATE</span>
-            <span>PACKAGE</span>
-            <span>PAYMENT</span>
-            <span>STATUS</span>
-
-        </div>
-
-    `;
-
-
-    filtered.forEach(booking => {
-
-        html += `
-
-            <div class="booking-row">
-
-                <span>
-                    ${booking.id}
-                </span>
-
-                <span>
-                    ${formatDate(booking.date)}
-                    <br>
-                    ${formatTime(booking.time)}
-                </span>
-
-                <span>
-                    ${booking.package}
-                </span>
-
-                <span>
-                    ₹${booking.price}
-                </span>
-
-                <span class="booking-status">
-                    ${booking.status.toUpperCase()}
-                </span>
-
-            </div>
-
-        `;
-
-    });
-
-
-    container.innerHTML = html;
-}
-
-
-/* =========================================================
-   BLOCK TIME
-   ========================================================= */
-
-function blockTime() {
-
-    const date =
-        document.getElementById(
-            "blockDate"
-        ).value;
-
-    const start =
-        document.getElementById(
-            "blockStart"
-        ).value;
-
-    const end =
-        document.getElementById(
-            "blockEnd"
-        ).value;
-
-    const reason =
-        document.getElementById(
-            "blockReason"
-        ).value.trim();
-
-
-    if (!date || !start || !end) {
-
-        alert(
-            "Please select a date and time."
-        );
-
-        return;
-    }
-
-
-    if (start >= end) {
-
-        alert(
-            "End time must be after start time."
-        );
-
-        return;
-    }
-
-
-    /*
-        IMPORTANT:
-
-        Do NOT allow the admin to block an already
-        booked slot.
-    */
-
-    const booked =
-        bookings.some(
-            booking =>
-                booking.date === date &&
-                booking.time === start &&
-                booking.status !== "cancelled"
-        );
-
-
-    if (booked) {
-
-        alert(
-            "This slot already has a confirmed booking. " +
-            "Cancel the booking first if you need to make it unavailable."
-        );
-
-        return;
-    }
-
-
-    /*
-        For each hour between start and end,
-        create a blocked slot.
-    */
-
-    let current =
-        Number(start.split(":")[0]);
-
-    const ending =
-        Number(end.split(":")[0]);
-
-
-    while (current < ending) {
-
-        const time =
-            String(current).padStart(2, "0") +
-            ":00";
-
-
-        const alreadyBlocked =
-            blockedSlots.some(
-                blocked =>
-                    blocked.date === date &&
-                    blocked.time === time
-            );
-
-
-        if (!alreadyBlocked) {
-
-            blockedSlots.push({
-
-                date: date,
-
-                time: time,
-
-                reason:
-                    reason ||
-                    "Admin blocked",
-
-                createdAt:
-                    new Date().toISOString()
-
-            });
-
-        }
-
-        current++;
-    }
-
-
-    saveData();
-
-    renderBlockedSlots();
-
-    loadSlots();
-
-
-    document.getElementById(
-        "blockReason"
-    ).value = "";
-
-
-    alert(
-        `${formatDate(date)} ${formatTime(start)}–${formatTime(end)} has been blocked.`
-    );
-}
-
-
-/* =========================================================
-   BLOCKED SLOT LIST
-   ========================================================= */
-
-function renderBlockedSlots() {
-
-    const container =
-        document.getElementById(
-            "blockedSlots"
-        );
-
-    if (!container) return;
-
-
-    if (blockedSlots.length === 0) {
-
-        container.innerHTML = `
-            <div style="
-                color:#555;
-                font-size:11px;
-                padding:15px 0;
-            ">
-                No blocked slots.
-            </div>
-        `;
-
-        return;
-    }
-
-
-    let html = "";
-
-
-    blockedSlots
-        .sort(
-            (a, b) =>
-                new Date(a.date + "T" + a.time) -
-                new Date(b.date + "T" + b.time)
-        )
-        .forEach(
-            (blocked, index) => {
-
-                html += `
-
-                    <div class="blocked-row">
-
-                        <div>
-
-                            <strong>
-                                ${formatDate(blocked.date)}
-                            </strong>
-
-                            <br>
-
-                            <span style="color:#666">
-                                ${formatTime(blocked.time)}
-                                —
-                                ${blocked.reason}
-                            </span>
-
-                        </div>
-
-                        <button
-                            onclick="unblockTime(${index})"
-                        >
-                            UNBLOCK
-                        </button>
+    container.innerHTML =
+        bookings
+            .slice()
+            .reverse()
+            .map(booking => `
+
+                <div class="booking-row">
+
+                    <div>
+
+                        <strong>
+                            ${escapeHTML(booking.name)}
+                        </strong>
+
+                        <small>
+                            ${escapeHTML(booking.date)}
+                            ·
+                            ${escapeHTML(booking.time)}
+                        </small>
+
+                        <small>
+                            ${escapeHTML(booking.service)}
+                        </small>
+
+                        <small>
+                            ${escapeHTML(booking.email)}
+                        </small>
 
                     </div>
 
-                `;
+                    <div>
 
-            }
-        );
+                        <div class="booking-status">
+                            ${booking.status.toUpperCase()}
+                        </div>
 
+                        <small>
+                            ₹${booking.amount}
+                        </small>
 
-    container.innerHTML = html;
+                    </div>
+
+                </div>
+
+            `)
+            .join("");
 }
 
 
-/* =========================================================
-   UNBLOCK
-   ========================================================= */
+/* -----------------------------
+   RENDER BLOCKED
+----------------------------- */
 
-function unblockTime(index) {
+function renderBlocked() {
 
-    const blocked =
-        blockedSlots[index];
-
-    if (!blocked) return;
-
-
-    const confirmed =
-        confirm(
-            `Unblock ${formatDate(blocked.date)} ${formatTime(blocked.time)}?`
-        );
+    const container =
+        document
+            .getElementById("blockedList");
 
 
-    if (!confirmed) return;
+    if (!blockedSlots.length) {
+
+        container.innerHTML =
+            `<p class="empty">
+                No blocked slots.
+            </p>`;
+
+        return;
+    }
 
 
-    blockedSlots.splice(index, 1);
+    container.innerHTML =
+        blockedSlots
+            .slice()
+            .reverse()
+            .map(slot => `
 
-    saveData();
+                <div class="blocked-item">
 
-    renderBlockedSlots();
+                    <div>
 
-    loadSlots();
+                        <strong>
+                            ${escapeHTML(slot.date)}
+                        </strong>
+
+                        <br>
+
+                        ${escapeHTML(slot.time)}
+
+                        <br>
+
+                        <span style="color:#777">
+                            ${escapeHTML(slot.reason)}
+                        </span>
+
+                    </div>
+
+                    <button
+                        onclick="removeBlock('${slot.id}')"
+                    >
+                        REMOVE
+                    </button>
+
+                </div>
+
+            `)
+            .join("");
 }
 
 
-/* =========================================================
-   ADMIN ACCESS
-   ========================================================= */
+/* -----------------------------
+   CLEAR BOOKINGS
+----------------------------- */
 
-/*
-    Demo shortcut:
+function clearBookings() {
 
-    Press CTRL + SHIFT + A
-
-    Production version should NOT expose this.
-*/
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.ctrlKey &&
-            event.shiftKey &&
-            event.key.toLowerCase() === "a"
-        ) {
-
-            document
-                .getElementById("adminModal")
-                .classList.add("show");
-
-        }
-
-    }
-);
+    if (
+        !confirm(
+            "Delete all prototype bookings?"
+        )
+    ) return;
 
 
-/* =========================================================
-   INITIALIZATION
-   ========================================================= */
+    bookings = [];
 
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
 
-        const date =
-            document.getElementById(
-                "blockDate"
-            );
+    localStorage.removeItem(
+        "crzBookings"
+    );
 
-        if (date) {
 
-            date.min =
-                new Date()
-                    .toISOString()
-                    .split("T")[0];
+    updateDashboard();
+}
 
-        }
 
-        loadSlots();
+/* -----------------------------
+   SECURITY HELPER
+----------------------------- */
 
-    }
-);
+function escapeHTML(value) {
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+/* -----------------------------
+   INITIALISE
+----------------------------- */
+
+if (
+    localStorage.getItem("crzAdmin") === "true"
+) {
+
+    document
+        .getElementById("dashboard")
+        .classList.add("show");
+
+    updateDashboard();
+}
+
+
+updateTotal();
