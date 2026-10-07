@@ -20,7 +20,7 @@
 
 const API_BASE =
     window.CRZ_API_BASE ||
-    "http://localhost:3000";
+    "https://crz-backend.onrender.com";
 
 
 /* =========================================================
