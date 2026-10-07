@@ -1,7 +1,7 @@
 {
   "name": "crz-backend",
   "version": "1.0.0",
-  "description": "CRZ DJ Studio booking backend",
+  "description": "CRZ DJ Studio prototype backend",
   "type": "module",
   "main": "server.js",
   "scripts": {
