@@ -888,6 +888,86 @@
 </div>
 
 
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+    import {
+        getMessaging,
+        getToken,
+        onMessage
+    } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBrjW0sfTym4VbLYVi2jwCMmSDrIjyQAvk",
+        authDomain: "crz-studio.firebaseapp.com",
+        projectId: "crz-studio",
+        storageBucket: "crz-studio.firebasestorage.app",
+        messagingSenderId: "343318259349",
+        appId: "1:343318259349:web:9d9240be08f7a79a66dd9c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+
+    window.crzMessaging = messaging;
+
+    window.requestCRZNotifications = async function () {
+
+        try {
+
+            const permission = await Notification.requestPermission();
+
+            if (permission !== "granted") {
+                console.log("Notification permission denied.");
+                return;
+            }
+
+            const registration =
+                await navigator.serviceWorker.register(
+                    "/firebase-messaging-sw.js"
+                );
+
+            const token = await getToken(messaging, {
+                vapidKey: "B04Kgv3-kc3O4_Q6uAP_r02WTPuFSzIsJKzlH4UkCaip_U7xxVvlXYg8gLTld0jYQTAycxQHjQkrDs-ABDU7L0" ,
+                serviceWorkerRegistration: registration
+            });
+
+            console.log("CRZ FCM TOKEN:", token);
+
+            // Save this token later in Firebase
+            window.crzNotificationToken = token;
+
+        } catch (error) {
+
+            console.error(
+                "CRZ notification setup failed:",
+                error
+            );
+
+        }
+
+    };
+
+    onMessage(messaging, (payload) => {
+
+        console.log("CRZ notification received:", payload);
+
+        if (payload.notification) {
+
+            new Notification(
+                payload.notification.title || "CRZ",
+                {
+                    body:
+                        payload.notification.body ||
+                        "New CRZ update."
+                }
+            );
+
+        }
+
+    });
+
+</script>
+
 <script src="script.js"></script>
 
 </body>
