@@ -1,28 +1,28 @@
 /*
 ====================================================
-CRZ — DJ STUDIO PLATFORM
-DEMO FRONTEND
+CRZ — DJ STUDIO BENGALURU
+FRONTEND PROTOTYPE
 ====================================================
 
-IMPORTANT:
+DEMO ONLY
 
-This is a prototype.
+Authentication, payments, bookings, refunds,
+email and SMS notifications are simulated with
+localStorage.
 
-Authentication, payments, refunds and bookings
-are simulated using localStorage.
+PRODUCTION VERSION SHOULD USE:
 
-For production:
-
-- Supabase/Auth
-- PostgreSQL database
-- Razorpay
+- Supabase / Firebase authentication
+- PostgreSQL / Supabase database
+- Razorpay / another payment gateway
 - Server-side payment verification
-- Webhooks
-- SMS provider
-- Email provider
-- Secure admin authorization
+- Payment webhooks
+- Transactional email provider
+- Indian transactional SMS provider
+- Proper admin authorization
 
-must replace the demo logic.
+ADMIN EMAIL:
+admin@crz.studio
 ====================================================
 */
 
@@ -34,139 +34,103 @@ must replace the demo logic.
 const ADMIN_EMAIL = "admin@crz.studio";
 
 
+/* =================================================
+   PACKAGES
+================================================= */
+
 const PACKAGES = {
 
     Practice: {
-        price: 349,
-        description:
+        price: 250,
+        label: "Practice Only",
+        desc:
             "4-CDJ setup + mixer + studio monitors"
     },
 
     Audio: {
-        price: 549,
-        description:
+        price: 400,
+        label: "Practice + Audio",
+        desc:
             "Practice + clean mixer audio recording"
     },
 
     Video: {
-        price: 799,
-        description:
+        price: 500,
+        label: "Practice + Audio + Video",
+        desc:
             "Audio + 4-camera multi-view recording"
     },
 
+    Raw: {
+        price: 600,
+        label: "Raw Recording",
+        desc:
+            "Unedited audio + multi-view video"
+    },
+
     Edited: {
-        price: 2499,
-        description:
-            "Audio + multi-camera video + edited final set"
+        price: 1800,
+        label: "Edited Recording",
+        desc:
+            "Audio + multi-view video + professional edit; 7–10 business days"
     }
 
 };
 
 
 /* =================================================
-   APPLICATION STATE
+   HELPERS
 ================================================= */
 
-const state = {
-
-    user:
-        JSON.parse(
-            localStorage.getItem("crzUser") || "null"
-        ),
-
-    bookings:
-        JSON.parse(
-            localStorage.getItem("crzBookings") || "[]"
-        ),
-
-    page:
-        location.hash.replace("#", "") || "home",
-
-    selectedPackage: "Video",
-
-    selectedDate: "",
-
-    selectedTime: "7:00 PM – 8:00 PM",
-
-    selectedMethod: "UPI"
-
-};
+const $ = selector =>
+    document.querySelector(selector);
 
 
-/* =================================================
-   STORAGE
-================================================= */
-
-function saveState() {
-
-    localStorage.setItem(
-        "crzUser",
-        JSON.stringify(state.user)
-    );
-
-    localStorage.setItem(
-        "crzBookings",
-        JSON.stringify(state.bookings)
-    );
-
-}
-
-
-/* =================================================
-   UTILITIES
-================================================= */
-
-function money(value) {
-
-    return "₹" +
-        Number(value).toLocaleString("en-IN");
-
-}
-
-
-function generateID(prefix = "CRZ") {
-
-    return prefix +
-        "-" +
-        Math.floor(
-            10000 + Math.random() * 90000
+const esc = value =>
+    String(value ?? "")
+        .replace(
+            /[&<>"']/g,
+            character =>
+                ({
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#39;"
+                }[character])
         );
 
-}
+
+const money = value =>
+    "₹" +
+    Number(value || 0)
+        .toLocaleString("en-IN");
 
 
-function todayISO() {
-
-    return new Date()
+const todayISO = () =>
+    new Date()
         .toISOString()
         .slice(0, 10);
 
-}
 
-
-function tomorrowISO() {
+const addDays = days => {
 
     const date = new Date();
 
     date.setDate(
-        date.getDate() + 1
+        date.getDate() + days
     );
 
     return date
         .toISOString()
         .slice(0, 10);
 
-}
+};
 
 
-function formatDate(dateString) {
-
-    if (!dateString) {
-        return "—";
-    }
-
-    return new Date(
-        dateString + "T00:00:00"
+const formatDate = date =>
+    new Date(
+        date + "T00:00:00"
     ).toLocaleDateString(
         "en-IN",
         {
@@ -176,49 +140,103 @@ function formatDate(dateString) {
         }
     );
 
+
+const generateID = () =>
+    `CRZ-${Date.now()
+        .toString(36)
+        .toUpperCase()}-${Math.random()
+        .toString(36)
+        .slice(2, 6)
+        .toUpperCase()}`;
+
+
+/* =================================================
+   STATE
+================================================= */
+
+const defaultState = {
+
+    user: null,
+
+    users: [],
+
+    bookings: [],
+
+    notifications: [],
+
+    selectedPackage:
+        "Practice",
+
+    selectedDate:
+        addDays(1),
+
+    selectedTime:
+        "18:00",
+
+    selectedMethod:
+        "UPI",
+
+    adminTab:
+        "overview"
+
+};
+
+
+let state =
+    JSON.parse(
+        localStorage.getItem(
+            "crz_state"
+        ) || "null"
+    ) ||
+    structuredClone(
+        defaultState
+    );
+
+
+function save() {
+
+    localStorage.setItem(
+        "crz_state",
+        JSON.stringify(state)
+    );
+
 }
 
 
-function escapeHTML(value) {
-
-    return String(value ?? "")
-        .replace(/[&<>"']/g, char => {
-
-            const map = {
-
-                "&": "&amp;",
-                "<": "&lt;",
-                ">": "&gt;",
-                '"': "&quot;",
-                "'": "&#039;"
-
-            };
-
-            return map[char];
-
-        });
-
-}
-
+/* =================================================
+   TOAST
+================================================= */
 
 function toast(message) {
 
     const element =
-        document.getElementById("toast");
+        $("#toast");
 
-    if (!element) {
+    if (!element)
         return;
-    }
 
-    element.textContent = message;
+    element.textContent =
+        message;
 
-    element.classList.add("show");
+    element.classList.add(
+        "show"
+    );
 
-    setTimeout(() => {
+    clearTimeout(
+        window._toast
+    );
 
-        element.classList.remove("show");
+    window._toast =
+        setTimeout(
+            () => {
 
-    }, 2800);
+                element.classList.remove(
+                    "show"
+                );
+
+            },
+            3000
+        );
 
 }
 
@@ -229,11 +247,8 @@ function toast(message) {
 
 function go(page) {
 
-    state.page = page;
-
-    location.hash = page;
-
-    render();
+    location.hash =
+        page;
 
 }
 
@@ -246,71 +261,64 @@ function navbar() {
 
     return `
 
-<header class="topbar">
+<header class="nav">
 
     <a
+        class="brand"
         href="#home"
-        class="logo"
     >
-        CRZ<i>.</i>
+        CRZ
     </a>
 
 
-    <nav class="nav">
+    <nav>
 
         <a href="#home">
-            Studio
+            HOME
         </a>
 
-        <a href="#packages">
-            Packages
+        <a href="#studio">
+            STUDIO
+        </a>
+
+        <a href="#pricing">
+            PRICING
         </a>
 
         <a href="#book">
-            Book
+            BOOK
         </a>
 
-
         ${
             state.user
-                ? `
-                    <a href="#account">
-                        My Bookings
-                    </a>
+                ?
                 `
-                : ""
+                <a href="#account">
+                    ACCOUNT
+                </a>
+                `
+                :
+                `
+                <a href="#login">
+                    LOGIN
+                </a>
+                `
         }
 
-
         ${
-            state.user?.email === ADMIN_EMAIL
-                ? `
-                    <a href="#admin">
-                        Admin
-                    </a>
+            state.user?.email ===
+            ADMIN_EMAIL
+                ?
                 `
-                : ""
-        }
-
-
-        ${
-            state.user
-                ? `
-                    <button
-                        class="btn small"
-                        onclick="logout()"
-                    >
-                        LOG OUT
-                    </button>
+                <a
+                    class="admin-link"
+                    href="#admin"
+                >
+                    ADMIN
+                </a>
                 `
-                : `
-                    <button
-                        class="btn small"
-                        onclick="openAuth()"
-                    >
-                        LOGIN / SIGN UP
-                    </button>
-                `
+                :
+                ""
         }
 
     </nav>
@@ -323,380 +331,18 @@ function navbar() {
 
 
 /* =================================================
-   HOME PAGE
+   SHELL
 ================================================= */
 
-function homePage() {
+function shell(content) {
 
     return `
 
-<div class="app-shell">
+<div class="shell">
 
-${navbar()}
+    ${navbar()}
 
-
-<section class="hero">
-
-    <div class="grid"></div>
-
-    <div class="eyebrow">
-        BENGALURU • DJ STUDIO
-    </div>
-
-
-    <h1>
-
-        PLAY.<br>
-
-        <span class="outline">
-            RECORD.
-        </span><br>
-
-        CREATE.
-
-    </h1>
-
-
-    <p>
-
-        A compact professional DJ studio
-        built for practice, audio recording,
-        multi-camera video and edited
-        performance sessions.
-
-    </p>
-
-
-    <div class="actions">
-
-        <a
-            class="btn primary"
-            href="#book"
-        >
-            BOOK A SESSION
-        </a>
-
-
-        <a
-            class="btn"
-            href="#packages"
-        >
-            VIEW PACKAGES
-        </a>
-
-    </div>
-
-
-    <div class="status">
-
-        <span class="dot"></span>
-
-        STUDIO ONLINE
-
-    </div>
-
-</section>
-
-
-
-<section class="section">
-
-    <div class="heading">
-
-        <div class="eyebrow">
-            THE SPACE
-        </div>
-
-
-        <h2>
-
-            BUILT FOR<br>
-
-            <span class="outline">
-                THE SET.
-            </span>
-
-        </h2>
-
-    </div>
-
-
-
-    <div class="studio">
-
-
-        <div class="visual">
-
-            <div class="mark">
-                CRZ
-            </div>
-
-
-            <div class="booth">
-
-                CDJ • CDJ • MIXER • CDJ • CDJ
-
-            </div>
-
-        </div>
-
-
-
-        <div class="features">
-
-            <div class="feature">
-
-                <b>04</b>
-
-                <span>
-                    Professional CDJs
-                </span>
-
-            </div>
-
-
-            <div class="feature">
-
-                <b>04</b>
-
-                <span>
-                    Dedicated camera angles
-                </span>
-
-            </div>
-
-
-            <div class="feature">
-
-                <b>01</b>
-
-                <span>
-                    Performance room
-                </span>
-
-            </div>
-
-
-            <div class="feature">
-
-                <b>∞</b>
-
-                <span>
-                    Sets to create
-                </span>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</section>
-
-
-
-${packagesSection()}
-
-
-
-<section class="section">
-
-
-    <div class="cameras">
-
-
-        <div>
-
-            <div class="eyebrow">
-                CRZ SESSION SYSTEM
-            </div>
-
-
-            <div class="heading">
-
-                <h2>
-
-                    FOUR ANGLES.<br>
-
-                    <span class="outline">
-                        ONE SET.
-                    </span>
-
-                </h2>
-
-            </div>
-
-
-            <p
-                style="
-                    color:#888;
-                    line-height:1.8;
-                "
-            >
-
-                Straight, left, right and
-                overhead cameras give the
-                video package a compact
-                Boiler Room-inspired look.
-
-            </p>
-
-        </div>
-
-
-
-        <div class="cammap">
-
-
-            <div class="cam s">
-
-                <b>CAM 01</b>
-
-                STRAIGHT
-
-            </div>
-
-
-            <div class="cam l">
-
-                <b>CAM 02</b>
-
-                LEFT
-
-            </div>
-
-
-            <div class="cam r">
-
-                <b>CAM 03</b>
-
-                RIGHT
-
-            </div>
-
-
-            <div class="cam t">
-
-                <b>CAM 04</b>
-
-                TOP
-
-            </div>
-
-
-        </div>
-
-
-    </div>
-
-</section>
-
-
-
-<section
-    class="section dark"
-    id="book"
->
-
-
-    <div class="heading center">
-
-        <div class="eyebrow">
-            RESERVE YOUR SESSION
-        </div>
-
-
-        <h2>
-
-            BOOK<br>
-
-            <span class="outline">
-                CRZ.
-            </span>
-
-        </h2>
-
-    </div>
-
-
-    ${bookingForm()}
-
-
-</section>
-
-
-
-<section class="delivery">
-
-
-    <div>
-
-        <div class="eyebrow">
-            POST-PRODUCTION
-        </div>
-
-
-        <div class="heading">
-
-            <h2>
-
-                YOUR SET.<br>
-
-                <span class="outline">
-                    OUR EDIT.
-                </span>
-
-            </h2>
-
-        </div>
-
-    </div>
-
-
-    <div>
-
-        <p>
-
-            Edited recordings go through
-            synchronization, audio processing,
-            multi-camera editing, colour work
-            and CRZ quality control.
-
-        </p>
-
-
-        <div class="big">
-            7–10
-        </div>
-
-
-        <p>
-            BUSINESS DAYS — standard edited
-            delivery window.
-        </p>
-
-    </div>
-
-</section>
-
-
-
-<footer>
-
-    <div class="footerlogo">
-        CRZ.
-    </div>
-
-    <p>
-        PLAY. RECORD. CREATE.
-    </p>
-
-    <p>
-        © 2026 CRZ — Prototype
-    </p>
-
-</footer>
-
+    ${content}
 
 </div>
 
@@ -706,285 +352,786 @@ ${packagesSection()}
 
 
 /* =================================================
-   PACKAGES
+   HOME
 ================================================= */
 
-function packagesSection() {
+function home() {
 
-    return `
+    return shell(`
 
-<section
-    class="section dark"
-    id="packages"
->
+<main class="hero">
 
-
-    <div class="heading center">
+    <div>
 
         <div class="eyebrow">
-            CHOOSE YOUR SESSION
+
+            BENGALURU ·
+            DJ PRACTICE &
+            RECORDING STUDIO
+
         </div>
 
 
+        <h1>
+
+            PRACTICE.<br>
+
+            RECORD.<br>
+
+            <span>
+                CREATE.
+            </span>
+
+        </h1>
+
+
+        <p class="lead">
+
+            A compact, professional DJ
+            room built around a 4-CDJ
+            setup, multi-camera recording
+            and a Boiler Room-inspired
+            environment.
+
+        </p>
+
+
+        <div class="actions">
+
+            <a
+                class="btn primary"
+                href="#book"
+            >
+                BOOK A SESSION
+            </a>
+
+            <a
+                class="btn"
+                href="#pricing"
+            >
+                VIEW PRICING
+            </a>
+
+        </div>
+
+
+        <div class="stats">
+
+            <div>
+
+                <b>
+                    4
+                </b>
+
+                <small>
+                    CDJs
+                </small>
+
+            </div>
+
+
+            <div>
+
+                <b>
+                    4
+                </b>
+
+                <small>
+                    CAMERAS
+                </small>
+
+            </div>
+
+
+            <div>
+
+                <b>
+                    ₹250
+                </b>
+
+                <small>
+                    FROM / HOUR
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</main>
+
+
+<section
+    id="studio"
+    class="section"
+>
+
+    <div class="section-head">
+
+        <span>
+            01
+        </span>
+
+        <h2>
+            THE STUDIO
+        </h2>
+
+    </div>
+
+
+    <div class="grid3">
+
+        <article>
+
+            <b>
+                PRO DJ SETUP
+            </b>
+
+            <p>
+
+                Four CDJs, professional
+                mixer and studio monitoring
+                for serious practice.
+
+            </p>
+
+        </article>
+
+
+        <article>
+
+            <b>
+                4-CAMERA SYSTEM
+            </b>
+
+            <p>
+
+                Straight, left, right and
+                top camera angles for
+                content and set recording.
+
+            </p>
+
+        </article>
+
+
+        <article>
+
+            <b>
+                CONTROLLED ROOM
+            </b>
+
+            <p>
+
+                Acoustic treatment,
+                controlled lighting and
+                a focused environment.
+
+            </p>
+
+        </article>
+
+    </div>
+
+</section>
+
+
+<section class="cta">
+
+    <div>
+
+        <span class="eyebrow">
+            CRZ · BENGALURU
+        </span>
+
         <h2>
 
-            YOUR SET.<br>
-
-            <span class="outline">
-                YOUR WAY.
-            </span>
+            Your set.<br>
+            Your room.
 
         </h2>
 
     </div>
 
 
+    <a
+        class="btn primary"
+        href="#book"
+    >
+        BOOK NOW
+    </a>
 
-    <div class="packages">
+</section>
+
+`);
+
+}
 
 
-        ${
-            Object.entries(PACKAGES)
-                .map(
-                    ([name, packageData], index) => `
+/* =================================================
+   PRICING
+================================================= */
 
-<article
-    class="
-        card
-        ${
-            name === "Video"
-                ? "featured"
-                : ""
-        }
-    "
+function pricing() {
+
+    return shell(`
+
+<section
+    id="pricing"
+    class="section pricing"
 >
 
+    <div class="section-head">
 
+        <span>
+            02
+        </span>
+
+        <h2>
+            PRICING
+        </h2>
+
+    </div>
+
+
+    <div class="cards">
+
+        ${
+            Object.entries(
+                PACKAGES
+            )
+            .map(
+                ([key, pkg], index) => `
+
+<article
+    class="price-card
     ${
-        name === "Video"
-            ? `
-                <div class="tag">
-                    MOST POPULAR
-                </div>
-            `
+        index === 2
+            ? "featured"
             : ""
-    }
-
+    }"
+>
 
     <div class="num">
+
         0${index + 1}
+
     </div>
 
 
     <h3>
-        ${name.toUpperCase()}
+
+        ${esc(pkg.label)}
+
     </h3>
 
 
     <p>
-        ${packageData.description}
+
+        ${esc(pkg.desc)}
+
     </p>
 
 
-    <div class="price">
+    <strong>
 
-        ${money(packageData.price)}
+        ${money(pkg.price)}
 
         <small>
-            / hr
+            /hr
         </small>
 
-    </div>
+    </strong>
 
 
     <button
-        class="
-            btn
-            ${
-                name === "Video"
-                    ? "blue"
-                    : ""
-            }
-        "
+        class="btn
+        ${
+            index === 2
+                ? "primary"
+                : ""
+        }"
         onclick="
-            choosePackage('${name}')
+            selectPackage('${key}')
         "
     >
 
-        BOOK
+        BOOK THIS
 
     </button>
-
 
 </article>
 
 `
-                )
-                .join("")
+            )
+            .join("")
         }
-
 
     </div>
 
+
+    <p class="note">
+
+        Edited recordings are delivered
+        within approximately 7–10
+        business days. Editing availability
+        may affect delivery time.
+
+    </p>
+
 </section>
 
-`;
+`);
 
 }
 
 
 /* =================================================
-   BOOKING FORM
+   STUDIO
 ================================================= */
 
-function bookingForm() {
+function studio() {
 
-    if (!state.user) {
+    return shell(`
 
-        return `
+<section class="section">
 
-<div class="booking">
-
-    <div class="summary">
-
-        <b>
-            LOGIN REQUIRED
-        </b>
-
-        <br>
+    <div class="section-head">
 
         <span>
-
-            You need a CRZ account before
-            making a booking.
-
-            Your booking, payment and
-            recording history stay attached
-            to your account.
-
+            03
         </span>
+
+        <h2>
+            STUDIO
+        </h2>
 
     </div>
 
 
-    <button
-        class="btn primary"
-        style="
-            width:100%;
-            margin-top:18px;
-        "
-        onclick="openAuth()"
-    >
+    <div class="studio-panel">
 
-        LOGIN / SIGN UP
+        <div>
 
-    </button>
+            <div class="camera-grid">
 
-</div>
+                <i>
+                    CAM 1 · FRONT
+                </i>
 
-`;
+                <i>
+                    CAM 2 · LEFT
+                </i>
+
+                <i>
+                    CAM 3 · RIGHT
+                </i>
+
+                <i>
+                    CAM 4 · TOP
+                </i>
+
+            </div>
+
+        </div>
+
+
+        <div>
+
+            <h3>
+
+                4-CDJ ·
+                MULTI-VIEW ·
+                RECORDING
+
+            </h3>
+
+
+            <p>
+
+                Designed for DJs who want
+                professional practice sessions
+                without the scale of a full
+                event venue.
+
+            </p>
+
+
+            <a
+                class="btn primary"
+                href="#book"
+            >
+
+                RESERVE THE ROOM
+
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
+`);
+
+}
+
+
+/* =================================================
+   LOGIN
+================================================= */
+
+function login() {
+
+    return shell(`
+
+<section class="auth">
+
+    <div class="auth-card">
+
+        <span class="eyebrow">
+            CRZ ACCOUNT
+        </span>
+
+
+        <h2>
+            WELCOME BACK.
+        </h2>
+
+
+        <form
+            onsubmit="
+                loginSubmit(event)
+            "
+        >
+
+            <input
+                id="loginEmail"
+                type="email"
+                placeholder="Email"
+                required
+            >
+
+
+            <input
+                id="loginPass"
+                type="password"
+                placeholder="Password"
+                required
+            >
+
+
+            <button
+                class="btn primary"
+            >
+
+                LOGIN
+
+            </button>
+
+        </form>
+
+
+        <p>
+
+            New to CRZ?
+
+            <a href="#signup">
+                Create an account
+            </a>
+
+        </p>
+
+
+        <p class="demo">
+
+            Admin demo:
+            admin@crz.studio
+
+        </p>
+
+    </div>
+
+</section>
+
+`);
+
+}
+
+
+/* =================================================
+   SIGNUP
+================================================= */
+
+function signup() {
+
+    return shell(`
+
+<section class="auth">
+
+    <div class="auth-card">
+
+        <span class="eyebrow">
+            CRZ ACCOUNT
+        </span>
+
+
+        <h2>
+            CREATE ACCOUNT.
+        </h2>
+
+
+        <form
+            onsubmit="
+                signupSubmit(event)
+            "
+        >
+
+            <input
+                id="signupName"
+                placeholder="Full name"
+                required
+            >
+
+
+            <input
+                id="signupEmail"
+                type="email"
+                placeholder="Email"
+                required
+            >
+
+
+            <input
+                id="signupPhone"
+                type="tel"
+                placeholder="Phone number"
+                required
+            >
+
+
+            <input
+                id="signupPass"
+                type="password"
+                minlength="6"
+                placeholder="Password (6+ characters)"
+                required
+            >
+
+
+            <button
+                class="btn primary"
+            >
+
+                CREATE ACCOUNT
+
+            </button>
+
+        </form>
+
+
+        <p>
+
+            Already registered?
+
+            <a href="#login">
+                Login
+            </a>
+
+        </p>
+
+    </div>
+
+</section>
+
+`);
+
+}
+
+
+/* =================================================
+   PACKAGE SELECTION
+================================================= */
+
+function selectPackage(key) {
+
+    state.selectedPackage =
+        key;
+
+    save();
+
+    go("book");
+
+}
+
+
+/* =================================================
+   BOOKING PAGE
+================================================= */
+
+function book() {
+
+    if (!state.user) {
+
+        return shell(`
+
+<section class="auth">
+
+    <div class="auth-card">
+
+        <span class="eyebrow">
+            BOOK CRZ
+        </span>
+
+
+        <h2>
+            LOGIN REQUIRED.
+        </h2>
+
+
+        <p>
+
+            Create an account so CRZ
+            can send booking confirmations
+            and keep your sessions in your
+            account.
+
+        </p>
+
+
+        <a
+            class="btn primary"
+            href="#login"
+        >
+
+            LOGIN / SIGN UP
+
+        </a>
+
+    </div>
+
+</section>
+
+`);
 
     }
 
 
-    return `
+    return shell(`
 
-<div class="booking">
+<section
+    class="section booking-page"
+>
+
+    <div class="section-head">
+
+        <span>
+            04
+        </span>
+
+        <h2>
+            BOOK A SESSION
+        </h2>
+
+    </div>
 
 
-    <div class="fields">
+    <div class="booking-layout">
 
 
-        <div class="field">
+        <form
+            class="booking-form"
+            onsubmit="
+                openCheckout(event)
+            "
+        >
 
             <label>
+
                 SESSION
-            </label>
 
+                <select id="package">
 
-            <select
-                id="bookPackage"
-                onchange="updateBookPrice()"
-            >
-
-                ${
-                    Object.entries(PACKAGES)
+                    ${
+                        Object.entries(
+                            PACKAGES
+                        )
                         .map(
-                            ([name, packageData]) => `
+                            ([key, pkg]) => `
 
 <option
-    value="${name}"
+    value="${key}"
     ${
-        state.selectedPackage === name
+        key ===
+        state.selectedPackage
             ? "selected"
             : ""
     }
 >
 
-    ${name}
+    ${pkg.label}
     —
-    ${money(packageData.price)}/hr
+    ${money(pkg.price)}/hr
 
 </option>
 
 `
                         )
                         .join("")
-                }
+                    }
 
-            </select>
+                </select>
 
-        </div>
-
-
-
-        <div class="field">
-
-            <label>
-                DATE
             </label>
 
 
-            <input
-                id="bookDate"
-                type="date"
-                min="${todayISO()}"
-                value="${state.selectedDate}"
-            >
+            <div class="two">
 
-        </div>
+                <label>
+
+                    DATE
+
+                    <input
+                        id="date"
+                        type="date"
+                        min="${todayISO()}"
+                        value="${state.selectedDate}"
+                        required
+                    >
+
+                </label>
 
 
+                <label>
 
-        <div class="field full">
+                    TIME
 
-            <label>
-                TIME
-            </label>
+                    <select id="time">
 
-
-            <select id="bookTime">
-
-                ${
-                    [
-                        "10:00 AM – 11:00 AM",
-                        "11:00 AM – 12:00 PM",
-                        "12:00 PM – 1:00 PM",
-                        "1:00 PM – 2:00 PM",
-                        "2:00 PM – 3:00 PM",
-                        "3:00 PM – 4:00 PM",
-                        "4:00 PM – 5:00 PM",
-                        "5:00 PM – 6:00 PM",
-                        "6:00 PM – 7:00 PM",
-                        "7:00 PM – 8:00 PM",
-                        "8:00 PM – 9:00 PM"
-                    ]
-                    .map(
-                        time => `
+                        ${
+                            [
+                                "09:00",
+                                "10:00",
+                                "11:00",
+                                "12:00",
+                                "13:00",
+                                "14:00",
+                                "15:00",
+                                "16:00",
+                                "17:00",
+                                "18:00",
+                                "19:00",
+                                "20:00",
+                                "21:00"
+                            ]
+                            .map(
+                                time => `
 
 <option
     ${
-        state.selectedTime === time
+        time ===
+        state.selectedTime
             ? "selected"
             : ""
     }
@@ -995,319 +1142,121 @@ function bookingForm() {
 </option>
 
 `
-                    )
-                    .join("")
+                            )
+                            .join("")
+                        }
+
+                    </select>
+
+                </label>
+
+            </div>
+
+
+            <div class="account-info">
+
+                <b>
+                    Notifications
+                </b>
+
+                <span>
+                    ${esc(state.user.email)}
+                </span>
+
+                <span>
+                    ${esc(state.user.phone)}
+                </span>
+
+                <small>
+
+                    Confirmation email +
+                    SMS will be simulated
+                    in this prototype.
+
+                </small>
+
+            </div>
+
+
+            <button
+                class="btn primary full"
+            >
+
+                CONTINUE TO PAYMENT ·
+
+                <span>
+
+                    ${money(
+                        PACKAGES[
+                            state.selectedPackage
+                        ].price
+                    )}
+
+                </span>
+
+            </button>
+
+        </form>
+
+
+        <aside class="booking-summary">
+
+            <span class="eyebrow">
+                YOUR SESSION
+            </span>
+
+
+            <h3>
+
+                ${
+                    PACKAGES[
+                        state.selectedPackage
+                    ].label
                 }
 
-            </select>
-
-        </div>
-
-    </div>
+            </h3>
 
 
+            <p>
 
-    <div class="total">
+                ${
+                    PACKAGES[
+                        state.selectedPackage
+                    ].desc
+                }
 
-        <span>
-            TOTAL
-        </span>
-
-
-        <strong id="bookTotal">
-
-            ${money(
-                PACKAGES[
-                    state.selectedPackage
-                ].price
-            )}
-
-        </strong>
-
-    </div>
+            </p>
 
 
+            <strong>
 
-    <button
-        class="btn primary"
-        style="
-            width:100%;
-            margin-top:22px;
-        "
-        onclick="startCheckout()"
-    >
+                ${money(
+                    PACKAGES[
+                        state.selectedPackage
+                    ].price
+                )}/hr
 
-        CONTINUE TO PAYMENT
-
-    </button>
+            </strong>
 
 
-    <div class="notice">
+            <hr>
 
-        Payment is required to confirm
-        the slot.
 
-        Demo checkout only.
+            <small>
+
+                Professional equipment ·
+                Controlled room ·
+                Booking confirmation
+
+            </small>
+
+        </aside>
 
     </div>
 
+</section>
 
-</div>
-
-`;
-
-}
-
-
-/* =================================================
-   PACKAGE SELECTION
-================================================= */
-
-function choosePackage(packageName) {
-
-    state.selectedPackage =
-        packageName;
-
-    location.hash = "book";
-
-    render();
-
-
-    setTimeout(() => {
-
-        document
-            .getElementById("book")
-            ?.scrollIntoView({
-                behavior: "smooth"
-            });
-
-    }, 30);
-
-}
-
-
-function updateBookPrice() {
-
-    state.selectedPackage =
-        document
-            .getElementById("bookPackage")
-            .value;
-
-
-    document
-        .getElementById("bookTotal")
-        .textContent =
-            money(
-                PACKAGES[
-                    state.selectedPackage
-                ].price
-            );
-
-}
-
-
-/* =================================================
-   AUTHENTICATION
-================================================= */
-
-function openAuth() {
-
-    document
-        .getElementById("authModal")
-        .classList
-        .add("show");
-
-}
-
-
-function closeModal(id) {
-
-    document
-        .getElementById(id)
-        .classList
-        .remove("show");
-
-}
-
-
-function auth(mode) {
-
-    document
-        .getElementById("authMode")
-        .value = mode;
-
-
-    document
-        .querySelectorAll(
-            ".auth-tabs button"
-        )
-        .forEach(button => {
-
-            button.classList.toggle(
-                "active",
-                button.dataset.mode === mode
-            );
-
-        });
-
-
-    document
-        .getElementById("authSubmit")
-        .textContent =
-            mode === "login"
-                ? "LOGIN"
-                : "CREATE ACCOUNT";
-
-
-    document
-        .getElementById("nameWrap")
-        .style.display =
-            mode === "login"
-                ? "none"
-                : "block";
-
-}
-
-
-function submitAuth() {
-
-    const mode =
-        document
-            .getElementById("authMode")
-            .value;
-
-
-    const email =
-        document
-            .getElementById("authEmail")
-            .value
-            .trim()
-            .toLowerCase();
-
-
-    const name =
-        document
-            .getElementById("authName")
-            .value
-            .trim();
-
-
-    const phone =
-        document
-            .getElementById("authPhone")
-            .value
-            .trim();
-
-
-    const error =
-        document
-            .getElementById("authError");
-
-
-    if (
-        !email ||
-        !email.includes("@")
-    ) {
-
-        error.textContent =
-            "Enter a valid email.";
-
-        return;
-
-    }
-
-
-    if (!phone) {
-
-        error.textContent =
-            "Phone number is required for booking notifications.";
-
-        return;
-
-    }
-
-
-    if (
-        mode === "signup" &&
-        !name
-    ) {
-
-        error.textContent =
-            "Enter your name.";
-
-        return;
-
-    }
-
-
-    state.user = {
-
-        name:
-            name ||
-            email.split("@")[0],
-
-        email,
-
-        phone
-
-    };
-
-
-    saveState();
-
-
-    closeModal("authModal");
-
-
-    render();
-
-
-    toast(
-        "Welcome to CRZ."
-    );
-
-}
-
-
-function googleDemo() {
-
-    state.user = {
-
-        name: "Google User",
-
-        email:
-            "google.demo@example.com",
-
-        phone:
-            "+91 90000 00000"
-
-    };
-
-
-    saveState();
-
-    closeModal("authModal");
-
-    render();
-
-    toast(
-        "Demo Google login successful."
-    );
-
-}
-
-
-function logout() {
-
-    state.user = null;
-
-    saveState();
-
-    go("home");
-
-    toast(
-        "Logged out."
-    );
+`);
 
 }
 
@@ -1316,194 +1265,183 @@ function logout() {
    CHECKOUT
 ================================================= */
 
-function startCheckout() {
+function openCheckout(event) {
 
-    const date =
-        document
-            .getElementById("bookDate")
-            .value;
+    event.preventDefault();
 
 
-    const time =
-        document
-            .getElementById("bookTime")
-            .value;
+    state.selectedPackage =
+        $("#package").value;
 
 
-    if (!date) {
-
-        toast(
-            "Choose a date first."
-        );
-
-        return;
-
-    }
+    state.selectedDate =
+        $("#date").value;
 
 
-    if (date < todayISO()) {
-
-        toast(
-            "Choose a future date."
-        );
-
-        return;
-
-    }
+    state.selectedTime =
+        $("#time").value;
 
 
-    state.selectedDate = date;
-
-    state.selectedTime = time;
+    save();
 
 
-    const packageData =
+    const pkg =
         PACKAGES[
             state.selectedPackage
         ];
 
 
-    document
-        .getElementById("checkoutBody")
-        .innerHTML = `
-
-<div class="eyebrow">
-    CRZ CHECKOUT
-</div>
-
-
-<h2>
-
-    SELECT<br>
-
-    <span class="outline">
-        PAYMENT.
-    </span>
-
-</h2>
-
-
-<div class="summary">
-
-    <b>
-
-        ${escapeHTML(
-            state.selectedPackage
-        )}
-
-        —
-
-        ${money(
-            packageData.price
-        )}
-
-    </b>
-
-    <br>
-
-    ${formatDate(date)}
-
-    <br>
-
-    ${escapeHTML(time)}
-
-    <br><br>
-
-    Total
-
-    <b style="color:#fff">
-
-        ${money(
-            packageData.price
-        )}
-
-    </b>
-
-</div>
-
-
-
-<div class="method-grid">
-
-
-    ${
-        [
-            "UPI",
-            "BHIM / UPI",
-            "Credit / Debit Card",
-            "Net Banking",
-            "Wallets"
-        ]
-        .map(
-            (method, index) => `
-
-<button
-    class="
-        method
-        ${
-            index === 0
-                ? "active"
-                : ""
-        }
-    "
-    onclick="
-        selectMethod(
-            this,
-            '${method}'
-        )
-    "
->
-
-    ${method}
-
-</button>
-
-`
-        )
-        .join("")
-    }
-
-
-</div>
-
-
+    document.body.insertAdjacentHTML(
+        "beforeend",
+        `
 
 <div
-    id="methodExtra"
-    class="field"
-></div>
-
-
-
-<button
-    class="btn primary"
-    style="width:100%"
-    onclick="demoPay()"
+    class="modal"
+    id="checkout"
 >
 
-    PAY
+    <div class="modal-card">
 
-    ${money(
-        packageData.price
-    )}
+        <button
+            class="close"
+            onclick="
+                closeModal()
+            "
+        >
 
-</button>
+            ×
+
+        </button>
 
 
-<div class="notice">
+        <span class="eyebrow">
+            PAYMENT
+        </span>
 
-    Demo only —
-    no real payment is processed.
+
+        <h2>
+            CONFIRM & PAY.
+        </h2>
+
+
+        <div class="checkout-summary">
+
+            <b>
+                ${pkg.label}
+            </b>
+
+            <span>
+
+                ${formatDate(
+                    state.selectedDate
+                )}
+
+                ·
+
+                ${state.selectedTime}
+
+            </span>
+
+
+            <strong>
+
+                ${money(pkg.price)}
+
+            </strong>
+
+        </div>
+
+
+        <div class="methods">
+
+            <button
+                class="method active"
+                onclick="
+                    setMethod(this,'UPI')
+                "
+            >
+                UPI
+            </button>
+
+
+            <button
+                class="method"
+                onclick="
+                    setMethod(this,'Card')
+                "
+            >
+                CARD
+            </button>
+
+
+            <button
+                class="method"
+                onclick="
+                    setMethod(
+                        this,
+                        'Net Banking'
+                    )
+                "
+            >
+                NET BANKING
+            </button>
+
+
+            <button
+                class="method"
+                onclick="
+                    setMethod(
+                        this,
+                        'BHIM UPI'
+                    )
+                "
+            >
+                BHIM
+            </button>
+
+        </div>
+
+
+        <div
+            id="methodExtra"
+            class="method-extra"
+        >
+
+            <input
+                placeholder="UPI ID (demo)"
+                id="upi"
+            >
+
+        </div>
+
+
+        <button
+            class="btn primary full"
+            onclick="
+                demoPay()
+            "
+        >
+
+            PAY
+            ${money(pkg.price)}
+            · TEST PAYMENT
+
+        </button>
+
+
+        <p class="demo">
+
+            Prototype mode —
+            no real money is charged.
+
+        </p>
+
+    </div>
 
 </div>
 
-`;
-
-
-    document
-        .getElementById("checkoutModal")
-        .classList
-        .add("show");
+`
+    );
 
 }
 
@@ -1512,13 +1450,15 @@ function startCheckout() {
    PAYMENT METHOD
 ================================================= */
 
-function selectMethod(
+function setMethod(
     element,
     method
 ) {
 
     document
-        .querySelectorAll(".method")
+        .querySelectorAll(
+            ".method"
+        )
         .forEach(
             button =>
                 button.classList.remove(
@@ -1537,97 +1477,78 @@ function selectMethod(
 
 
     const extra =
-        document
-            .getElementById("methodExtra");
+        $("#methodExtra");
 
 
     if (
-        method.includes("Card")
+        method.includes(
+            "UPI"
+        )
     ) {
 
         extra.innerHTML = `
 
-<label>
-    CARD DETAILS
-</label>
-
 <input
-    placeholder="4111 1111 1111 1111"
+    id="upi"
+    placeholder="UPI ID (demo)"
 >
 
+`;
 
-<br><br>
+    }
 
+    else if (
+        method === "Card"
+    ) {
+
+        extra.innerHTML = `
+
+<div class="two">
+
+<input
+    placeholder="Card number"
+>
 
 <input
     placeholder="MM/YY"
-    style="width:48%"
 >
 
-
-<input
-    placeholder="CVV"
-    style="
-        width:48%;
-        margin-left:2%;
-    "
->
+</div>
 
 `;
 
     }
 
     else if (
-        method === "Net Banking"
+        method ===
+        "Net Banking"
     ) {
 
         extra.innerHTML = `
-
-<label>
-    BANK
-</label>
 
 <select>
 
-    <option>
-        Select bank
-    </option>
+<option>
+    Select bank
+</option>
 
-    <option>
-        HDFC Bank
-    </option>
+<option>
+    HDFC Bank
+</option>
 
-    <option>
-        ICICI Bank
-    </option>
+<option>
+    ICICI Bank
+</option>
 
-    <option>
-        SBI
-    </option>
+<option>
+    SBI
+</option>
 
-    <option>
-        Axis Bank
-    </option>
+<option>
+    Axis Bank
+</option>
 
 </select>
-
-`;
-
-    }
-
-    else if (
-        method.includes("UPI")
-    ) {
-
-        extra.innerHTML = `
-
-<label>
-    UPI ID
-</label>
-
-<input
-    placeholder="name@upi"
->
 
 `;
 
@@ -1648,10 +1569,36 @@ function selectMethod(
 
 function demoPay() {
 
-    const packageData =
+    const pkg =
         PACKAGES[
             state.selectedPackage
         ];
+
+
+    const slotTaken =
+        state.bookings.some(
+            booking =>
+
+                booking.date ===
+                    state.selectedDate &&
+
+                booking.time ===
+                    state.selectedTime &&
+
+                booking.bookingStatus !==
+                    "Cancelled"
+        );
+
+
+    if (slotTaken) {
+
+        toast(
+            "That slot is already booked."
+        );
+
+        return;
+
+    }
 
 
     const booking = {
@@ -1671,8 +1618,11 @@ function demoPay() {
         package:
             state.selectedPackage,
 
+        packageLabel:
+            pkg.label,
+
         price:
-            packageData.price,
+            pkg.price,
 
         date:
             state.selectedDate,
@@ -1693,19 +1643,54 @@ function demoPay() {
             "Not Requested",
 
         recordingStatus:
-            state.selectedPackage === "Practice"
-                ? "None"
-                : state.selectedPackage === "Audio"
-                    ? "Audio"
-                    : "Pending",
+
+            state.selectedPackage ===
+                "Practice"
+
+                ?
+
+                "None"
+
+                :
+
+                state.selectedPackage ===
+                    "Audio"
+
+                ?
+
+                "Audio"
+
+                :
+
+                state.selectedPackage ===
+                    "Video"
+
+                ?
+
+                "Audio + Video"
+
+                :
+
+                "Raw Audio + Video",
+
 
         editingStatus:
-            state.selectedPackage === "Edited"
-                ? "Queued"
-                : "Not Applicable",
+
+            state.selectedPackage ===
+                "Edited"
+
+                ?
+
+                "Queued"
+
+                :
+
+                "Not Applicable",
+
 
         createdAt:
-            new Date().toISOString()
+            new Date()
+                .toISOString()
 
     };
 
@@ -1715,89 +1700,114 @@ function demoPay() {
     );
 
 
-    saveState();
+    /*
+    =================================================
+    TEST EMAIL + SMS
+    =================================================
+    */
+
+    sendTestNotifications(
+        booking
+    );
 
 
-    document
-        .getElementById("checkoutBody")
-        .innerHTML = `
+    save();
 
-<div class="success">
 
+    $("#checkout").innerHTML = `
+
+<div
+    class="modal-card success"
+>
 
     <div class="check">
         ✓
     </div>
 
 
+    <span class="eyebrow">
+
+        CRZ ·
+        ${esc(booking.id)}
+
+    </span>
+
+
     <h2>
 
         BOOKING<br>
 
-        <span class="outline">
+        <span>
             CONFIRMED.
         </span>
 
     </h2>
 
 
-    <div class="summary">
+    <p>
 
-        <b>
-            ${booking.id}
-        </b>
+        ${esc(pkg.label)}
 
-        <br>
-
-        ${booking.package}
-
-        •
-
-        ${money(
-            booking.price
-        )}
-
-        <br>
+        ·
 
         ${formatDate(
             booking.date
         )}
 
-        •
+        ·
 
         ${booking.time}
-
-        <br>
-
-        Payment:
-
-        ${booking.paymentMethod}
-
-        ✓
-
-    </div>
-
-
-    <p
-        style="
-            color:#888;
-            line-height:1.7;
-        "
-    >
-
-        A confirmation email and SMS
-        would be sent here in the
-        production system.
 
     </p>
 
 
+    <strong>
+
+        ${money(
+            booking.price
+        )}
+
+    </strong>
+
+
+    <div
+        class="notification-result"
+    >
+
+        <b>
+            TEST NOTIFICATIONS SENT
+        </b>
+
+
+        <span>
+
+            ✓ Email →
+
+            ${esc(
+                booking.userEmail
+            )}
+
+        </span>
+
+
+        <span>
+
+            ✓ SMS →
+
+            ${esc(
+                booking.phone
+            )}
+
+        </span>
+
+    </div>
+
+
     <button
-        class="btn primary"
-        style="width:100%"
+        class="btn primary full"
         onclick="
-            closeModal('checkoutModal');
-            go('account');
+            closeModal();
+            go('account')
         "
     >
 
@@ -1805,63 +1815,129 @@ function demoPay() {
 
     </button>
 
-
 </div>
 
 `;
+
+
+    toast(
+        "Booking confirmed — test email + SMS logged."
+    );
 
 }
 
 
 /* =================================================
-   CUSTOMER ACCOUNT
+   TEST EMAIL + SMS
 ================================================= */
 
-function accountPage() {
+function sendTestNotifications(
+    booking
+) {
 
-    if (!state.user) {
-
-        return `
-
-<div class="app-shell">
-
-${navbar()}
-
-<section
-    class="section center"
->
-
-    <div class="heading">
-
-        <h2>
-
-            LOGIN<br>
-
-            <span class="outline">
-                REQUIRED.
-            </span>
-
-        </h2>
-
-    </div>
+    const timestamp =
+        new Date()
+            .toISOString();
 
 
-    <button
-        class="btn primary"
-        onclick="openAuth()"
-    >
+    /*
+    EMAIL
+    */
 
-        LOGIN / SIGN UP
+    state.notifications.push({
 
-    </button>
+        id:
+            generateID(),
 
-</section>
+        bookingId:
+            booking.id,
 
-</div>
+        type:
+            "EMAIL",
 
-`;
+        to:
+            booking.userEmail,
 
-    }
+        status:
+            "Sent (Test)",
+
+        subject:
+            `CRZ booking confirmed · ${booking.id}`,
+
+        message:
+
+            `Your CRZ session is confirmed for ` +
+
+            `${formatDate(
+                booking.date
+            )} at ${booking.time}. ` +
+
+            `${booking.packageLabel}. ` +
+
+            `Total ${money(
+                booking.price
+            )}.`,
+
+        createdAt:
+            timestamp
+
+    });
+
+
+    /*
+    SMS
+    */
+
+    state.notifications.push({
+
+        id:
+            generateID(),
+
+        bookingId:
+            booking.id,
+
+        type:
+            "SMS",
+
+        to:
+            booking.phone,
+
+        status:
+            "Sent (Test)",
+
+        subject:
+            "CRZ booking confirmation",
+
+        message:
+
+            `CRZ: Booking ${booking.id} ` +
+
+            `confirmed. ` +
+
+            `${formatDate(
+                booking.date
+            )} ${booking.time}. ` +
+
+            `${money(
+                booking.price
+            )}.`,
+
+        createdAt:
+            timestamp
+
+    });
+
+}
+
+
+/* =================================================
+   ACCOUNT
+================================================= */
+
+function account() {
+
+    if (!state.user)
+        return login();
 
 
     const bookings =
@@ -1871,326 +1947,262 @@ ${navbar()}
                     booking.userEmail ===
                     state.user.email
             )
-            .sort(
-                (a, b) =>
-                    a.date.localeCompare(
-                        b.date
-                    )
-            );
+            .reverse();
 
 
-    return `
-
-<div class="app-shell">
-
-${navbar()}
-
+    return shell(`
 
 <section class="section">
 
+    <div class="account-head">
 
-<div class="dash-head">
+        <div>
+
+            <span class="eyebrow">
+                MY CRZ
+            </span>
 
 
-<div>
+            <h2>
 
-    <div class="eyebrow">
-        CUSTOMER ACCOUNT
+                ${esc(
+                    state.user.name
+                ).toUpperCase()}
+
+            </h2>
+
+
+            <p>
+
+                ${esc(
+                    state.user.email
+                )}
+
+                ·
+
+                ${esc(
+                    state.user.phone
+                )}
+
+            </p>
+
+        </div>
+
+
+        <button
+            class="btn"
+            onclick="
+                logout()
+            "
+        >
+
+            LOGOUT
+
+        </button>
+
     </div>
 
 
-    <h1>
-
-        WELCOME,
-
-        ${escapeHTML(
-            state.user.name
-        ).toUpperCase()}
-
-    </h1>
-
-
-    <p
-        style="color:#777"
+    <div
+        class="stats cards4"
     >
 
-        ${escapeHTML(
-            state.user.email
-        )}
+        <div>
 
-        •
+            <b>
+                ${bookings.length}
+            </b>
 
-        ${escapeHTML(
-            state.user.phone
-        )}
+            <small>
+                TOTAL BOOKINGS
+            </small>
 
-    </p>
-
-</div>
+        </div>
 
 
-<button
-    class="btn primary"
-    onclick="go('book')"
+        <div>
+
+            <b>
+
+                ${
+                    bookings.filter(
+                        b =>
+                            b.bookingStatus ===
+                            "Confirmed"
+                    ).length
+                }
+
+            </b>
+
+            <small>
+                UPCOMING
+            </small>
+
+        </div>
+
+
+        <div>
+
+            <b>
+
+                ${
+                    bookings.filter(
+                        b =>
+                            b.bookingStatus ===
+                            "Completed"
+                    ).length
+                }
+
+            </b>
+
+            <small>
+                COMPLETED
+            </small>
+
+        </div>
+
+
+        <div>
+
+            <b>
+
+                ${money(
+                    bookings.reduce(
+                        (
+                            total,
+                            booking
+                        ) =>
+                            total +
+                            booking.price,
+                        0
+                    )
+                )}
+
+            </b>
+
+            <small>
+                SPEND
+            </small>
+
+        </div>
+
+    </div>
+
+
+    <div class="table-wrap">
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        BOOKING
+                    </th>
+
+                    <th>
+                        SESSION
+                    </th>
+
+                    <th>
+                        DATE
+                    </th>
+
+                    <th>
+                        PAYMENT
+                    </th>
+
+                    <th>
+                        STATUS
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+                ${
+                    bookings.length
+
+                    ?
+
+                    bookings
+                        .map(
+                            bookingRow
+                        )
+                        .join("")
+
+                    :
+
+                    `
+
+<tr>
+
+<td
+    colspan="5"
+    class="empty"
 >
 
-    BOOK AGAIN
+    No bookings yet.
 
-</button>
+</td>
 
+</tr>
 
-</div>
+`
+                }
 
+            </tbody>
 
-
-<div class="metrics">
-
-
-<div class="metric">
-
-    <div class="label">
-        TOTAL BOOKINGS
-    </div>
-
-    <div class="value">
-        ${bookings.length}
-    </div>
-
-</div>
-
-
-<div class="metric">
-
-    <div class="label">
-        UPCOMING
-    </div>
-
-    <div class="value">
-
-        ${
-            bookings.filter(
-                booking =>
-                    booking.date >= todayISO() &&
-                    booking.bookingStatus ===
-                        "Confirmed"
-            ).length
-        }
+        </table>
 
     </div>
-
-</div>
-
-
-<div class="metric">
-
-    <div class="label">
-        COMPLETED
-    </div>
-
-    <div class="value">
-
-        ${
-            bookings.filter(
-                booking =>
-                    booking.bookingStatus ===
-                    "Completed"
-            ).length
-        }
-
-    </div>
-
-</div>
-
-
-<div class="metric">
-
-    <div class="label">
-        RECORDINGS
-    </div>
-
-    <div class="value">
-
-        ${
-            bookings.filter(
-                booking =>
-                    booking.recordingStatus !==
-                    "None"
-            ).length
-        }
-
-    </div>
-
-</div>
-
-
-</div>
-
-
-
-<div class="tablebox">
-
-
-<div class="tabletop">
-
-    <b>
-        MY BOOKINGS
-    </b>
-
-</div>
-
-
-${bookingTable(
-    bookings,
-    false
-)}
-
-
-</div>
-
 
 </section>
 
-</div>
-
-`;
+`);
 
 }
 
 
 /* =================================================
-   BOOKING TABLE
+   BOOKING ROW
 ================================================= */
 
-function bookingTable(
-    bookings,
-    admin = false
+function bookingRow(
+    booking
 ) {
-
-    if (!bookings.length) {
-
-        return `
-
-<div
-    style="
-        padding:35px;
-        color:#777;
-    "
->
-
-    No bookings yet.
-
-</div>
-
-`;
-
-    }
-
 
     return `
 
-<table class="table">
-
-
-<thead>
-
 <tr>
 
-<th>
-    ID
-</th>
-
-
-${
-    admin
-        ? `
-<th>
-    CUSTOMER
-</th>
-`
-        : ""
-}
-
-
-<th>
-    SESSION
-</th>
-
-
-<th>
-    DATE / TIME
-</th>
-
-
-<th>
-    PAYMENT
-</th>
-
-
-<th>
-    BOOKING
-</th>
-
-
-<th>
-    REFUND
-</th>
-
-
-<th>
-    ACTIONS
-</th>
-
-</tr>
-
-</thead>
-
-
-
-<tbody>
-
-
-${
-    bookings
-        .map(
-            booking => `
-
-<tr>
-
-
-<td>
-    ${booking.id}
-</td>
-
-
-${
-    admin
-        ? `
 <td>
 
-    ${escapeHTML(
-        booking.userName
-    )}
+    <b>
+        ${esc(
+            booking.id
+        )}
+    </b>
 
-    <br>
-
-    <span
-        style="color:#555"
-    >
-
-        ${escapeHTML(
+    <small>
+        ${esc(
             booking.userEmail
         )}
-
-    </span>
+    </small>
 
 </td>
-`
-        : ""
-}
 
 
 <td>
-    ${booking.package}
+
+    ${esc(
+        booking.packageLabel
+    )}
+
 </td>
 
 
@@ -2200,166 +2212,46 @@ ${
         booking.date
     )}
 
-    <br>
-
-    ${booking.time}
-
-</td>
-
-
-<td>
-
-<span
-    class="
-        badge
-        ${
-            booking.paymentStatus ===
-            "Paid"
-                ? "ok"
-                : "warn"
-        }
-    "
->
-
-    ${booking.paymentStatus}
-
-</span>
+    <small>
+        ${booking.time}
+    </small>
 
 </td>
 
 
 <td>
 
-<span
-    class="
-        badge
+    ${money(
+        booking.price
+    )}
 
-        ${
-            booking.bookingStatus ===
-            "Completed"
-                ? "ok"
-                : booking.bookingStatus ===
-                    "Cancelled"
-                    ? "bad"
-                    : "blue"
-        }
-    "
->
-
-    ${booking.bookingStatus}
-
-</span>
+    <small>
+        ${esc(
+            booking.paymentMethod
+        )}
+    </small>
 
 </td>
 
 
 <td>
 
-<span
-    class="
-        badge
+    <span
+        class="
+            status
+            ${booking.bookingStatus.toLowerCase()}
+        "
+    >
 
-        ${
-            booking.refundStatus ===
-            "Refund Completed"
-                ? "ok"
-                : booking.refundStatus.includes(
-                    "Refund"
-                )
-                    ? "warn"
-                    : ""
-        }
-    "
->
+        ${esc(
+            booking.bookingStatus
+        )}
 
-    ${booking.refundStatus}
-
-</span>
+    </span>
 
 </td>
-
-
-<td>
-
-<div class="admin-actions">
-
-
-${
-    admin
-        ? `
-<button
-    class="btn small"
-    onclick="
-        completeBooking(
-            '${booking.id}'
-        )
-    "
->
-
-    COMPLETE
-
-</button>
-
-
-<button
-    class="btn small"
-    onclick="
-        cycleRefund(
-            '${booking.id}'
-        )
-    "
->
-
-    UPDATE REFUND
-
-</button>
-`
-        : ""
-}
-
-
-${
-    booking.bookingStatus !==
-        "Cancelled" &&
-    booking.bookingStatus !==
-        "Completed"
-
-        ? `
-
-<button
-    class="btn small danger"
-    onclick="
-        requestRefund(
-            '${booking.id}'
-        )
-    "
->
-
-    REFUND
-
-</button>
-
-`
-        : ""
-}
-
-
-</div>
-
-</td>
-
 
 </tr>
-
-`
-        )
-        .join("")
-}
-
-
-</tbody>
-
-</table>
 
 `;
 
@@ -2370,42 +2262,36 @@ ${
    ADMIN DASHBOARD
 ================================================= */
 
-function adminPage() {
+function admin() {
 
     if (
         state.user?.email !==
         ADMIN_EMAIL
     ) {
 
-        return `
+        return shell(`
 
-<div class="app-shell">
+<section class="auth">
 
-${navbar()}
+    <div class="auth-card">
 
-
-<section
-    class="section center"
->
-
-    <h2>
-        ACCESS DENIED
-    </h2>
+        <h2>
+            ACCESS DENIED.
+        </h2>
 
 
-    <p
-        style="color:#777"
-    >
+        <p>
 
-        Admin access is restricted.
+            Admin access is restricted
+            to the configured admin email.
 
-    </p>
+        </p>
+
+    </div>
 
 </section>
 
-</div>
-
-`;
+`);
 
     }
 
@@ -2413,16 +2299,36 @@ ${navbar()}
     const bookings =
         [
             ...state.bookings
-        ].sort(
+        ]
+        .sort(
             (a, b) =>
                 (
                     a.date +
                     a.time
-                ).localeCompare(
+                )
+                .localeCompare(
                     b.date +
                     b.time
                 )
         );
+
+
+    const revenue =
+        bookings
+            .filter(
+                booking =>
+                    booking.paymentStatus ===
+                    "Paid"
+            )
+            .reduce(
+                (
+                    total,
+                    booking
+                ) =>
+                    total +
+                    booking.price,
+                0
+            );
 
 
     const today =
@@ -2437,15 +2343,17 @@ ${navbar()}
         bookings.filter(
             booking =>
                 booking.date ===
-                tomorrowISO()
+                addDays(1)
         );
 
 
     const future =
         bookings.filter(
             booking =>
+
                 booking.date >
                     todayISO() &&
+
                 booking.bookingStatus ===
                     "Confirmed"
         );
@@ -2459,1064 +2367,1140 @@ ${navbar()}
         );
 
 
-    const pendingPayment =
+    const refunds =
         bookings.filter(
             booking =>
-                booking.paymentStatus ===
-                "Pending"
+                booking.refundStatus !==
+                "Not Requested"
         );
 
 
-    const cancelled =
-        bookings.filter(
-            booking =>
-                booking.bookingStatus ===
-                "Cancelled"
-        );
+    let content = "";
 
 
-    const revenue =
-        bookings
-            .filter(
-                booking =>
-                    booking.paymentStatus ===
-                    "Paid"
+    /* =================================================
+       ADMIN TABS
+    ================================================= */
+
+    switch (
+        state.adminTab
+    ) {
+
+
+        /* ---------------------------------------------
+           BOOKINGS
+        --------------------------------------------- */
+
+        case "bookings":
+
+            content = `
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>
+    ID / CUSTOMER
+</th>
+
+<th>
+    SESSION
+</th>
+
+<th>
+    DATE
+</th>
+
+<th>
+    PAYMENT
+</th>
+
+<th>
+    STATUS
+</th>
+
+<th>
+    ACTIONS
+</th>
+
+</tr>
+
+</thead>
+
+
+<tbody>
+
+${
+    bookings.length
+
+    ?
+
+    bookings
+        .map(
+            booking => `
+
+<tr>
+
+<td>
+
+    <b>
+        ${esc(
+            booking.id
+        )}
+    </b>
+
+    <small>
+        ${esc(
+            booking.userName
+        )}
+        <br>
+        ${esc(
+            booking.userEmail
+        )}
+    </small>
+
+</td>
+
+
+<td>
+
+    ${esc(
+        booking.packageLabel
+    )}
+
+</td>
+
+
+<td>
+
+    ${formatDate(
+        booking.date
+    )}
+
+    <small>
+        ${booking.time}
+    </small>
+
+</td>
+
+
+<td>
+
+    ${money(
+        booking.price
+    )}
+
+    <small>
+        ${esc(
+            booking.paymentMethod
+        )}
+    </small>
+
+</td>
+
+
+<td>
+
+    <span
+        class="
+            status
+            ${booking.bookingStatus.toLowerCase()}
+        "
+    >
+
+        ${esc(
+            booking.bookingStatus
+        )}
+
+    </span>
+
+</td>
+
+
+<td>
+
+    <button
+        class="mini"
+        onclick="
+            completeBooking(
+                '${booking.id}'
             )
-            .reduce(
-                (total, booking) =>
-                    total + booking.price,
-                0
-            );
+        "
+    >
+
+        Complete
+
+    </button>
 
 
-    const todayRevenue =
-        today.reduce(
-            (total, booking) =>
-                total +
-                (
-                    booking.paymentStatus ===
-                    "Paid"
-                        ? booking.price
-                        : 0
-                ),
-            0
-        );
+    <button
+        class="mini danger"
+        onclick="
+            refund(
+                '${booking.id}'
+            )
+        "
+    >
 
+        Refund
 
-    return `
+    </button>
 
-<div class="app-shell">
+</td>
 
-${navbar()}
+</tr>
 
+`
+        )
+        .join("")
 
-<div class="dashboard">
+    :
 
+    `
 
-<aside class="sidebar">
+<tr>
 
+<td
+    colspan="6"
+    class="empty"
+>
 
-<div class="side-title">
+    No bookings.
 
-    CRZ ADMIN
+</td>
+
+</tr>
+
+`
+}
+
+</tbody>
+
+</table>
 
 </div>
 
+`;
 
-<div class="side">
-
-
-<button
-    class="active"
-    onclick="
-        adminTab('overview')
-    "
->
-
-    Overview
-
-</button>
+            break;
 
 
-<button
-    onclick="
-        adminTab('bookings')
-    "
->
+        /* ---------------------------------------------
+           CALENDAR
+        --------------------------------------------- */
 
-    Bookings
+        case "calendar":
 
-</button>
+            content = `
 
+<div class="grid3">
 
-<button
-    onclick="
-        adminTab('calendar')
-    "
->
+<article>
 
-    Calendar
+    <b>
+        TODAY
+    </b>
 
-</button>
-
-
-<button
-    onclick="
-        adminTab('customers')
-    "
->
-
-    Customers
-
-</button>
+    <h3>
+        ${today.length}
+    </h3>
 
 
-<button
-    onclick="
-        adminTab('recordings')
-    "
->
+    <p>
 
-    Recordings
+        ${
+            today
+                .map(
+                    booking =>
+                        esc(
+                            booking.time
+                        ) +
+                        " · " +
+                        esc(
+                            booking.packageLabel
+                        )
+                )
+                .join("<br>")
 
-</button>
+            ||
 
+            "No sessions"
+        }
 
-<button
-    onclick="
-        adminTab('editing')
-    "
->
+    </p>
 
-    Editing Queue
-
-</button>
-
-
-<button
-    onclick="
-        adminTab('refunds')
-    "
->
-
-    Refunds
-
-</button>
+</article>
 
 
-<button
-    onclick="
-        adminTab('revenue')
-    "
->
+<article>
 
-    Revenue
+    <b>
+        TOMORROW
+    </b>
 
-</button>
+    <h3>
+        ${tomorrow.length}
+    </h3>
 
+
+    <p>
+
+        ${
+            tomorrow
+                .map(
+                    booking =>
+                        esc(
+                            booking.time
+                        ) +
+                        " · " +
+                        esc(
+                            booking.packageLabel
+                        )
+                )
+                .join("<br>")
+
+            ||
+
+            "No sessions"
+        }
+
+    </p>
+
+</article>
+
+
+<article>
+
+    <b>
+        FUTURE
+    </b>
+
+    <h3>
+        ${future.length}
+    </h3>
+
+
+    <p>
+        Confirmed future bookings.
+    </p>
+
+</article>
 
 </div>
 
-</aside>
+`;
+
+            break;
 
 
+        /* ---------------------------------------------
+           CUSTOMERS
+        --------------------------------------------- */
 
-<main
-    class="main"
-    id="adminMain"
+        case "customers": {
+
+            const customers =
+                [
+                    ...new Map(
+                        bookings.map(
+                            booking => [
+
+                                booking.userEmail,
+
+                                {
+                                    name:
+                                        booking.userName,
+
+                                    email:
+                                        booking.userEmail,
+
+                                    phone:
+                                        booking.phone
+
+                                }
+
+                            ]
+                        )
+                    ).values()
+                ];
+
+
+            content = `
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>
+    NAME
+</th>
+
+<th>
+    EMAIL
+</th>
+
+<th>
+    PHONE
+</th>
+
+<th>
+    BOOKINGS
+</th>
+
+</tr>
+
+</thead>
+
+
+<tbody>
+
+${
+    customers
+        .map(
+            customer => `
+
+<tr>
+
+<td>
+    ${esc(
+        customer.name
+    )}
+</td>
+
+<td>
+    ${esc(
+        customer.email
+    )}
+</td>
+
+<td>
+    ${esc(
+        customer.phone
+    )}
+</td>
+
+<td>
+
+    ${
+        bookings.filter(
+            booking =>
+                booking.userEmail ===
+                customer.email
+        ).length
+    }
+
+</td>
+
+</tr>
+
+`
+        )
+        .join("")
+
+    ||
+
+    `
+
+<tr>
+
+<td colspan="4">
+    No customers.
+</td>
+
+</tr>
+
+`
+}
+
+</tbody>
+
+</table>
+
+</div>
+
+`;
+
+            break;
+
+        }
+
+
+        /* ---------------------------------------------
+           RECORDINGS
+        --------------------------------------------- */
+
+        case "recordings":
+
+            content = `
+
+<div class="queue">
+
+${
+    bookings
+        .filter(
+            booking =>
+                booking.recordingStatus !==
+                "None"
+        )
+        .map(
+            booking => `
+
+<article>
+
+    <b>
+        ${esc(
+            booking.id
+        )}
+    </b>
+
+    <span>
+        ${esc(
+            booking.packageLabel
+        )}
+    </span>
+
+    <small>
+        ${esc(
+            booking.recordingStatus
+        )}
+    </small>
+
+</article>
+
+`
+        )
+        .join("")
+
+    ||
+
+    `
+    <p class="empty">
+        No recording jobs.
+    </p>
+    `
+}
+
+</div>
+
+`;
+
+            break;
+
+
+        /* ---------------------------------------------
+           EDITING
+        --------------------------------------------- */
+
+        case "editing":
+
+            content = `
+
+<div class="queue">
+
+${
+    bookings
+        .filter(
+            booking =>
+                booking.editingStatus ===
+                "Queued"
+        )
+        .map(
+            booking => `
+
+<article>
+
+    <b>
+        ${esc(
+            booking.id
+        )}
+    </b>
+
+    <span>
+        ${esc(
+            booking.userName
+        )}
+    </span>
+
+    <small>
+
+        Queued ·
+        7–10 business days
+
+    </small>
+
+</article>
+
+`
+        )
+        .join("")
+
+    ||
+
+    `
+    <p class="empty">
+        No editing jobs.
+    </p>
+    `
+}
+
+</div>
+
+`;
+
+            break;
+
+
+        /* ---------------------------------------------
+           REFUNDS
+        --------------------------------------------- */
+
+        case "refunds":
+
+            content = `
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>
+    BOOKING
+</th>
+
+<th>
+    AMOUNT
+</th>
+
+<th>
+    STATUS
+</th>
+
+</tr>
+
+</thead>
+
+
+<tbody>
+
+${
+    refunds
+        .map(
+            booking => `
+
+<tr>
+
+<td>
+    ${esc(
+        booking.id
+    )}
+</td>
+
+<td>
+    ${money(
+        booking.price
+    )}
+</td>
+
+<td>
+    ${esc(
+        booking.refundStatus
+    )}
+</td>
+
+</tr>
+
+`
+        )
+        .join("")
+
+    ||
+
+    `
+
+<tr>
+
+<td colspan="3">
+    No refunds.
+</td>
+
+</tr>
+
+`
+}
+
+</tbody>
+
+</table>
+
+</div>
+
+`;
+
+            break;
+
+
+        /* ---------------------------------------------
+           NOTIFICATIONS
+        --------------------------------------------- */
+
+        case "notifications":
+
+            content = `
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>
+    TYPE
+</th>
+
+<th>
+    TO
+</th>
+
+<th>
+    BOOKING
+</th>
+
+<th>
+    STATUS
+</th>
+
+<th>
+    TIME
+</th>
+
+</tr>
+
+</thead>
+
+
+<tbody>
+
+${
+    state.notifications
+        .slice()
+        .reverse()
+        .map(
+            notification => `
+
+<tr>
+
+<td>
+
+    ${esc(
+        notification.type
+    )}
+
+</td>
+
+
+<td>
+
+    ${esc(
+        notification.to
+    )}
+
+</td>
+
+
+<td>
+
+    ${esc(
+        notification.bookingId
+    )}
+
+</td>
+
+
+<td>
+
+<span
+    class="
+        status
+        completed
+    "
 >
 
+    ${esc(
+        notification.status
+    )}
 
-<div class="dash-head">
+</span>
+
+</td>
+
+
+<td>
+
+    ${new Date(
+        notification.createdAt
+    ).toLocaleString(
+        "en-IN"
+    )}
+
+</td>
+
+</tr>
+
+`
+        )
+        .join("")
+
+    ||
+
+    `
+
+<tr>
+
+<td colspan="5">
+    No notifications.
+</td>
+
+</tr>
+
+`
+}
+
+</tbody>
+
+</table>
+
+</div>
+
+`;
+
+            break;
+
+
+        /* ---------------------------------------------
+           OVERVIEW
+        --------------------------------------------- */
+
+        default:
+
+            content = `
+
+<div class="stats cards4">
+
+<div>
+
+    <b>
+        ${bookings.length}
+    </b>
+
+    <small>
+        TOTAL BOOKINGS
+    </small>
+
+</div>
 
 
 <div>
 
-    <div class="eyebrow">
-        CONTROL CENTRE
-    </div>
-
-
-    <h1>
-        OVERVIEW
-    </h1>
-
-
-    <p
-        style="color:#777"
-    >
-
-        Today:
-
-        ${formatDate(
-            todayISO()
-        )}
-
-    </p>
-
-</div>
-
-
-<input
-    class="search"
-    placeholder="
-        Search booking/customer...
-    "
-    oninput="
-        adminSearch(
-            this.value
-        )
-    "
->
-
-
-</div>
-
-
-
-<div class="metrics">
-
-
-<div class="metric">
-
-    <div class="label">
-        TODAY BOOKINGS
-    </div>
-
-    <div class="value">
-        ${today.length}
-    </div>
-
-</div>
-
-
-<div class="metric">
-
-    <div class="label">
-        TODAY REVENUE
-    </div>
-
-    <div class="value">
-        ${money(
-            todayRevenue
-        )}
-    </div>
-
-</div>
-
-
-<div class="metric">
-
-    <div class="label">
-        TOTAL BOOKINGS
-    </div>
-
-    <div class="value">
-        ${bookings.length}
-    </div>
-
-</div>
-
-
-<div class="metric">
-
-    <div class="label">
-        TOTAL REVENUE
-    </div>
-
-    <div class="value">
-        ${money(
-            revenue
-        )}
-    </div>
-
-</div>
-
-
-</div>
-
-
-
-<div class="submetrics">
-
-
-<div class="mini">
-
     <b>
-        ${tomorrow.length}
+        ${today.length}
     </b>
 
-    <span>
-        TOMORROW
-    </span>
+    <small>
+        TODAY
+    </small>
 
 </div>
 
 
-<div class="mini">
+<div>
 
     <b>
         ${future.length}
     </b>
 
-    <span>
+    <small>
         FUTURE PENDING
-    </span>
+    </small>
 
 </div>
 
 
-<div class="mini">
+<div>
 
     <b>
-        ${completed.length}
+        ${money(revenue)}
     </b>
 
-    <span>
+    <small>
+        REVENUE
+    </small>
+
+</div>
+
+</div>
+
+
+<div class="grid3">
+
+<article>
+
+    <b>
         COMPLETED
-    </span>
-
-</div>
-
-
-<div class="mini">
-
-    <b>
-        ${cancelled.length}
     </b>
 
-    <span>
-        CANCELLED
-    </span>
+    <h3>
+        ${completed.length}
+    </h3>
 
-</div>
-
-
-<div class="mini">
-
-    <b>
-        ${pendingPayment.length}
-    </b>
-
-    <span>
-        PENDING PAYMENT
-    </span>
-
-</div>
+</article>
 
 
-</div>
-
-
-
-<div class="tablebox">
-
-
-<div class="tabletop">
+<article>
 
     <b>
-        TODAY'S SESSIONS
+        REFUNDS
     </b>
 
+    <h3>
+        ${refunds.length}
+    </h3>
 
-    <span>
-        ${today.length}
-        bookings
-    </span>
-
-</div>
+</article>
 
 
-${bookingTable(
-    today,
-    true
-)}
-
-
-</div>
-
-
-
-<div class="tablebox">
-
-
-<div class="tabletop">
+<article>
 
     <b>
-        REFUND ACTIVITY
+        NOTIFICATIONS
     </b>
 
+    <h3>
+        ${state.notifications.length}
+    </h3>
 
-    <span>
+    <a
+        href="#admin?notifications"
+        onclick="
+            adminTab('notifications')
+        "
+    >
 
-        ${
-            bookings.filter(
-                booking =>
-                    booking.refundStatus !==
-                    "Not Requested"
-            ).length
-        }
+        View test email/SMS log
 
-        records
+    </a>
 
-    </span>
-
-</div>
-
-
-${bookingTable(
-    bookings.filter(
-        booking =>
-            booking.refundStatus !==
-            "Not Requested"
-    ),
-    true
-)}
-
-
-</div>
-
-
-</main>
-
-
-</div>
-
+</article>
 
 </div>
 
 `;
 
+    }
+
+
+    return shell(`
+
+<section class="admin">
+
+    <div class="admin-top">
+
+        <div>
+
+            <span class="eyebrow">
+                CRZ CONTROL
+            </span>
+
+            <h2>
+                ADMIN DASHBOARD
+            </h2>
+
+        </div>
+
+
+        <span class="admin-pill">
+
+            ${esc(
+                ADMIN_EMAIL
+            )}
+
+        </span>
+
+    </div>
+
+
+    <div class="admin-layout">
+
+
+        <aside class="side">
+
+            <button
+                class="${
+                    state.adminTab ===
+                    "overview"
+                        ? "active"
+                        : ""
+                }"
+                onclick="
+                    adminTab('overview')
+                "
+            >
+                Overview
+            </button>
+
+
+            <button
+                class="${
+                    state.adminTab ===
+                    "bookings"
+                        ? "active"
+                        : ""
+                }"
+                onclick="
+                    adminTab('bookings')
+                "
+            >
+                Bookings
+            </button>
+
+
+            <button
+                class="${
+                    state.adminTab ===
+                    "calendar"
+                        ? "active"
+                        : ""
+                }"
+                onclick="
+                    adminTab('calendar')
+                "
+            >
+                Calendar
+            </button>
+
+
+            <button
+                class="${
+                    state.adminTab ===
+                    "customers"
+                        ? "active"
+                        : ""
+                }"
+                onclick="
+                    adminTab('customers')
+                "
+            >
+                Customers
+            </button>
+
+
+            <button
+                class="${
+                    state.adminTab ===
+                    "recordings"
+                        ? "active"
+                        : ""
+                }"
+                onclick="
+                    adminTab('recordings')
+                "
+            >
+                Recordings
+            </button>
+
+
+            <button
+                class="${
+                    state.adminTab ===
+                    "editing"
+                        ? "active"
+                        : ""
+                }"
+                onclick="
+                    adminTab('editing')
+                "
+            >
+                Editing Queue
+            </button>
+
+
+            <button
+                class="${
+                    state.adminTab ===
+                    "refunds"
+                        ? "active"
+                        : ""
+                }"
+                onclick="
+                    adminTab('refunds')
+                "
+            >
+                Refunds
+            </button>
+
+
+            <button
+                class="${
+                    state.adminTab ===
+                    "notifications"
+                        ? "active"
+                        : ""
+                }"
+                onclick="
+                    adminTab('notifications')
+                "
+            >
+                Email / SMS
+            </button>
+
+        </aside>
+
+
+        <main class="admin-main">
+
+            ${content}
+
+        </main>
+
+    </div>
+
+</section>
+
+`);
+
 }
 
 
 /* =================================================
-   ADMIN TABS
+   ADMIN TAB
 ================================================= */
 
 function adminTab(tab) {
 
-    const main =
-        document.getElementById(
-            "adminMain"
-        );
+    state.adminTab =
+        tab;
 
+    save();
 
-    if (!main) {
-        return;
-    }
-
-
-    const bookings =
-        [...state.bookings];
-
-
-    let title = "";
-
-    let rows = bookings;
-
-
-    if (tab === "bookings") {
-
-        title =
-            "ALL BOOKINGS";
-
-    }
-
-
-    if (tab === "calendar") {
-
-        renderCalendar();
-
-        return;
-
-    }
-
-
-    if (tab === "customers") {
-
-        renderCustomers();
-
-        return;
-
-    }
-
-
-    if (tab === "recordings") {
-
-        title =
-            "RECORDINGS";
-
-        rows =
-            bookings.filter(
-                booking =>
-                    booking.recordingStatus !==
-                    "None"
-            );
-
-    }
-
-
-    if (tab === "editing") {
-
-        title =
-            "EDITING QUEUE";
-
-        rows =
-            bookings.filter(
-                booking =>
-                    booking.editingStatus &&
-                    booking.editingStatus !==
-                        "Not Applicable"
-            );
-
-    }
-
-
-    if (tab === "refunds") {
-
-        title =
-            "REFUNDS";
-
-        rows =
-            bookings.filter(
-                booking =>
-                    booking.refundStatus !==
-                    "Not Requested"
-            );
-
-    }
-
-
-    if (tab === "revenue") {
-
-        renderRevenue();
-
-        return;
-
-    }
-
-
-    main.innerHTML = `
-
-<div class="dash-head">
-
-    <div>
-
-        <div class="eyebrow">
-            CRZ ADMIN
-        </div>
-
-
-        <h1>
-            ${title}
-        </h1>
-
-    </div>
-
-</div>
-
-
-
-<div class="tablebox">
-
-${bookingTable(
-    rows,
-    true
-)}
-
-</div>
-
-`;
+    render();
 
 }
 
 
 /* =================================================
-   CUSTOMERS
-================================================= */
-
-function renderCustomers() {
-
-    const main =
-        document.getElementById(
-            "adminMain"
-        );
-
-
-    const customerMap = {};
-
-
-    state.bookings.forEach(
-        booking => {
-
-            customerMap[
-                booking.userEmail
-            ] = booking;
-
-        }
-    );
-
-
-    const customers =
-        Object.values(
-            customerMap
-        );
-
-
-    main.innerHTML = `
-
-<div class="dash-head">
-
-    <div>
-
-        <div class="eyebrow">
-            CUSTOMERS
-        </div>
-
-        <h1>
-            CUSTOMERS
-        </h1>
-
-    </div>
-
-</div>
-
-
-
-<div class="tablebox">
-
-
-${
-    customers.length
-
-        ? customers
-            .map(
-                customer => `
-
-<div
-    style="
-        padding:18px;
-        border-bottom:
-            1px solid #1c1c20;
-    "
->
-
-    <b>
-        ${escapeHTML(
-            customer.userName
-        )}
-    </b>
-
-    <br>
-
-    <span
-        style="color:#777"
-    >
-
-        ${escapeHTML(
-            customer.userEmail
-        )}
-
-        •
-
-        ${escapeHTML(
-            customer.phone
-        )}
-
-    </span>
-
-</div>
-
-`
-            )
-            .join("")
-
-        : `
-
-<div
-    style="
-        padding:30px;
-        color:#777;
-    "
->
-
-    No customers.
-
-</div>
-
-`
-
-}
-
-
-</div>
-
-`;
-
-}
-
-
-/* =================================================
-   CALENDAR
-================================================= */
-
-function renderCalendar() {
-
-    const main =
-        document.getElementById(
-            "adminMain"
-        );
-
-
-    const start =
-        new Date();
-
-
-    start.setDate(
-        start.getDate() -
-        start.getDay()
-    );
-
-
-    let html = `
-
-<div class="dash-head">
-
-    <div>
-
-        <div class="eyebrow">
-            SCHEDULE
-        </div>
-
-        <h1>
-            CALENDAR
-        </h1>
-
-    </div>
-
-</div>
-
-
-
-<div class="calendar">
-
-`;
-
-
-    for (
-        let i = 0;
-        i < 35;
-        i++
-    ) {
-
-        const day =
-            new Date(start);
-
-
-        day.setDate(
-            start.getDate() + i
-        );
-
-
-        const iso =
-            day
-                .toISOString()
-                .slice(0, 10);
-
-
-        const events =
-            state.bookings.filter(
-                booking =>
-                    booking.date ===
-                    iso
-            );
-
-
-        html += `
-
-<div class="day">
-
-    <div class="date">
-
-        ${day.toLocaleDateString(
-            "en-IN",
-            {
-                weekday:
-                    "short",
-                day:
-                    "numeric",
-                month:
-                    "short"
-            }
-        )}
-
-    </div>
-
-
-    ${
-        events
-            .map(
-                booking => `
-
-<div class="event">
-
-    <b>
-
-        ${
-            booking.time
-                .split("–")[0]
-        }
-
-        •
-
-        ${booking.package}
-
-    </b>
-
-
-    ${escapeHTML(
-        booking.userName
-    )}
-
-</div>
-
-`
-            )
-            .join("")
-    }
-
-</div>
-
-`;
-
-    }
-
-
-    html += `
-</div>
-`;
-
-
-    main.innerHTML =
-        html;
-
-}
-
-
-/* =================================================
-   REVENUE
-================================================= */
-
-function renderRevenue() {
-
-    const main =
-        document.getElementById(
-            "adminMain"
-        );
-
-
-    const paid =
-        state.bookings.filter(
-            booking =>
-                booking.paymentStatus ===
-                "Paid"
-        );
-
-
-    const gross =
-        paid.reduce(
-            (total, booking) =>
-                total +
-                booking.price,
-            0
-        );
-
-
-    const refunded =
-        state.bookings
-            .filter(
-                booking =>
-                    booking.refundStatus ===
-                    "Refund Completed"
-            )
-            .reduce(
-                (total, booking) =>
-                    total +
-                    booking.price,
-                0
-            );
-
-
-    main.innerHTML = `
-
-<div class="dash-head">
-
-    <div>
-
-        <div class="eyebrow">
-            FINANCE
-        </div>
-
-        <h1>
-            REVENUE
-        </h1>
-
-    </div>
-
-</div>
-
-
-
-<div class="metrics">
-
-
-<div class="metric">
-
-    <div class="label">
-        GROSS REVENUE
-    </div>
-
-    <div class="value">
-
-        ${money(gross)}
-
-    </div>
-
-</div>
-
-
-<div class="metric">
-
-    <div class="label">
-        PAID BOOKINGS
-    </div>
-
-    <div class="value">
-
-        ${paid.length}
-
-    </div>
-
-</div>
-
-
-<div class="metric">
-
-    <div class="label">
-        REFUNDED
-    </div>
-
-    <div class="value">
-
-        ${money(refunded)}
-
-    </div>
-
-</div>
-
-
-<div class="metric">
-
-    <div class="label">
-        NET DEMO TOTAL
-    </div>
-
-    <div class="value">
-
-        ${money(
-            gross - refunded
-        )}
-
-    </div>
-
-</div>
-
-
-</div>
-
-`;
-
-}
-
-
-/* =================================================
-   ADMIN SEARCH
-================================================= */
-
-function adminSearch(query) {
-
-    if (!query) {
-
-        adminTab(
-            "bookings"
-        );
-
-        return;
-
-    }
-
-
-    const results =
-        state.bookings.filter(
-            booking => {
-
-                const searchable =
-                    `
-                    ${booking.id}
-                    ${booking.userName}
-                    ${booking.userEmail}
-                    ${booking.phone}
-                    `
-                    .toLowerCase();
-
-
-                return searchable.includes(
-                    query.toLowerCase()
-                );
-
-            }
-        );
-
-
-    document
-        .getElementById("adminMain")
-        .innerHTML = `
-
-<div class="dash-head">
-
-    <div>
-
-        <div class="eyebrow">
-            SEARCH
-        </div>
-
-        <h1>
-            RESULTS
-        </h1>
-
-    </div>
-
-</div>
-
-
-
-<div class="tablebox">
-
-${bookingTable(
-    results,
-    true
-)}
-
-</div>
-
-`;
-
-}
-
-
-/* =================================================
-   BOOKING ACTIONS
+   COMPLETE BOOKING
 ================================================= */
 
 function completeBooking(
@@ -3525,33 +3509,21 @@ function completeBooking(
 
     const booking =
         state.bookings.find(
-            item =>
-                item.id ===
+            booking =>
+                booking.id ===
                 bookingID
         );
 
 
-    if (!booking) {
+    if (!booking)
         return;
-    }
 
 
     booking.bookingStatus =
         "Completed";
 
 
-    if (
-        booking.package ===
-        "Edited"
-    ) {
-
-        booking.editingStatus =
-            "Queued";
-
-    }
-
-
-    saveState();
+    save();
 
     render();
 
@@ -3563,10 +3535,10 @@ function completeBooking(
 
 
 /* =================================================
-   REFUND REQUEST
+   REFUND
 ================================================= */
 
-function requestRefund(
+function refund(
     bookingID
 ) {
 
@@ -3578,455 +3550,435 @@ function requestRefund(
         );
 
 
-    if (!booking) {
+    if (!booking)
         return;
-    }
-
-
-    booking.bookingStatus =
-        "Cancelled";
 
 
     booking.refundStatus =
-        "Refund Requested";
+        "Refund Initiated";
 
 
-    saveState();
+    save();
 
     render();
 
     toast(
-        "Refund requested."
+        "Refund initiated (demo)."
+    );
+
+
+    setTimeout(
+        () => {
+
+            const updated =
+                state.bookings.find(
+                    item =>
+                        item.id ===
+                        bookingID
+                );
+
+
+            if (!updated)
+                return;
+
+
+            updated.refundStatus =
+                "Refund Completed";
+
+
+            save();
+
+            render();
+
+        },
+        1200
     );
 
 }
 
 
 /* =================================================
-   REFUND LIFECYCLE
+   SIGNUP
 ================================================= */
 
-function cycleRefund(
-    bookingID
+function signupSubmit(
+    event
 ) {
 
-    const booking =
-        state.bookings.find(
-            item =>
-                item.id ===
-                bookingID
-        );
+    event.preventDefault();
 
 
-    if (!booking) {
-        return;
-    }
+    const name =
+        $("#signupName")
+            .value
+            .trim();
 
 
-    const stages = [
-
-        "Refund Requested",
-
-        "Refund Initiated",
-
-        "Refund Processing",
-
-        "Refund Completed",
-
-        "Refund Failed"
-
-    ];
+    const email =
+        $("#signupEmail")
+            .value
+            .trim()
+            .toLowerCase();
 
 
-    let index =
-        stages.indexOf(
-            booking.refundStatus
-        );
+    const phone =
+        $("#signupPhone")
+            .value
+            .trim();
 
 
-    booking.refundStatus =
-        stages[
-            (index + 1) %
-            stages.length
-        ];
+    const password =
+        $("#signupPass")
+            .value;
 
 
     if (
-        booking.refundStatus ===
-        "Refund Completed"
+        state.users.some(
+            user =>
+                user.email ===
+                email
+        )
+        ||
+        email ===
+        ADMIN_EMAIL
     ) {
 
-        booking.paymentStatus =
-            "Refunded";
+        toast(
+            "Email already registered."
+        );
+
+        return;
 
     }
 
 
-    saveState();
+    state.users.push({
 
-    render();
+        name,
+
+        email,
+
+        phone,
+
+        pass:
+            password
+
+    });
+
+
+    state.user = {
+
+        name,
+
+        email,
+
+        phone
+
+    };
+
+
+    save();
+
 
     toast(
-        `Refund: ${booking.refundStatus}`
+        "Account created."
     );
+
+
+    go("book");
 
 }
 
 
 /* =================================================
-   MODALS
+   LOGIN
 ================================================= */
 
-function createModals() {
+function loginSubmit(
+    event
+) {
+
+    event.preventDefault();
+
+
+    const email =
+        $("#loginEmail")
+            .value
+            .trim()
+            .toLowerCase();
+
+
+    const password =
+        $("#loginPass")
+            .value;
+
+
+    /*
+    ADMIN DEMO
+    */
 
     if (
-        document.getElementById(
-            "authModal"
-        )
+        email ===
+        ADMIN_EMAIL
     ) {
+
+        state.user = {
+
+            name:
+                "CRZ Admin",
+
+            email:
+                ADMIN_EMAIL,
+
+            phone:
+                "+91 00000 00000"
+
+        };
+
+
+        save();
+
+        go("admin");
 
         return;
 
     }
 
 
-    document.body.insertAdjacentHTML(
-        "beforeend",
+    const user =
+        state.users.find(
+            item =>
+                item.email ===
+                    email &&
 
-        `
+                item.pass ===
+                    password
+        );
 
-<div
-    class="modal"
-    id="authModal"
->
 
+    if (!user) {
 
-<div class="modalbox">
+        toast(
+            "Invalid email or password."
+        );
 
+        return;
 
-<button
-    class="close"
-    onclick="
-        closeModal(
-            'authModal'
-        )
-    "
->
+    }
 
-    ×
 
-</button>
+    state.user = {
 
+        name:
+            user.name,
 
-<div class="eyebrow">
-    CRZ ACCOUNT
-</div>
+        email:
+            user.email,
 
+        phone:
+            user.phone
 
-<h2>
+    };
 
-    WELCOME<br>
 
-    <span class="outline">
-        BACK.
-    </span>
+    save();
 
-</h2>
 
-
-
-<div class="auth-tabs">
-
-
-<button
-    data-mode="login"
-    class="active"
-    onclick="
-        auth('login')
-    "
->
-
-    LOGIN
-
-</button>
-
-
-<button
-    data-mode="signup"
-    onclick="
-        auth('signup')
-    "
->
-
-    SIGN UP
-
-</button>
-
-
-</div>
-
-
-
-<button
-    class="google"
-    onclick="googleDemo()"
->
-
-    Continue with Google (Demo)
-
-</button>
-
-
-<div class="or">
-    OR
-</div>
-
-
-
-<input
-    type="hidden"
-    id="authMode"
-    value="login"
->
-
-
-
-<div
-    id="nameWrap"
-    style="display:none"
-    class="field"
->
-
-    <label>
-        NAME
-    </label>
-
-
-    <input
-        id="authName"
-        placeholder="Your name"
-    >
-
-</div>
-
-
-
-<div class="field">
-
-    <label>
-        EMAIL
-    </label>
-
-
-    <input
-        id="authEmail"
-        type="email"
-        placeholder="you@example.com"
-    >
-
-</div>
-
-
-
-<div class="field">
-
-    <label>
-        PHONE
-    </label>
-
-
-    <input
-        id="authPhone"
-        placeholder="+91 XXXXX XXXXX"
-    >
-
-</div>
-
-
-
-<div class="field">
-
-    <label>
-        PASSWORD
-    </label>
-
-
-    <input
-        type="password"
-        placeholder="Demo password"
-    >
-
-</div>
-
-
-
-<div
-    id="authError"
-    class="auth-error"
-></div>
-
-
-
-<button
-    id="authSubmit"
-    class="btn primary"
-    style="width:100%"
-    onclick="
-        submitAuth()
-    "
->
-
-    LOGIN
-
-</button>
-
-
-
-<div class="notice">
-
-    Prototype authentication only.
-
-</div>
-
-
-</div>
-
-</div>
-
-
-
-<div
-    class="modal"
-    id="checkoutModal"
->
-
-
-<div
-    class="modalbox"
-    id="checkoutBody"
-></div>
-
-
-</div>
-
-
-
-<div
-    id="toast"
-    class="toast"
-></div>
-
-`
-
-    );
+    go("account");
 
 }
 
 
 /* =================================================
-   RENDER
+   LOGOUT
+================================================= */
+
+function logout() {
+
+    state.user =
+        null;
+
+    save();
+
+    go("home");
+
+}
+
+
+/* =================================================
+   CLOSE MODALS
+================================================= */
+
+function closeModal() {
+
+    document
+        .querySelectorAll(
+            ".modal"
+        )
+        .forEach(
+            modal =>
+                modal.remove()
+        );
+
+}
+
+
+/* =================================================
+   ROUTER
 ================================================= */
 
 function render() {
 
-    const app =
-        document.getElementById(
-            "app"
-        );
+    const route =
+        location.hash
+            .slice(1) ||
+        "home";
+
+
+    let html;
 
 
     if (
-        state.page ===
-        "account"
+        route ===
+        "home"
     ) {
 
-        app.innerHTML =
-            accountPage();
+        html =
+            home();
 
     }
 
     else if (
-        state.page ===
-        "admin"
+        route ===
+        "studio"
     ) {
 
-        app.innerHTML =
-            adminPage();
+        html =
+            studio();
+
+    }
+
+    else if (
+        route ===
+        "pricing"
+    ) {
+
+        html =
+            pricing();
+
+    }
+
+    else if (
+        route ===
+        "book"
+    ) {
+
+        html =
+            book();
+
+    }
+
+    else if (
+        route ===
+        "login"
+    ) {
+
+        html =
+            login();
+
+    }
+
+    else if (
+        route ===
+        "signup"
+    ) {
+
+        html =
+            signup();
+
+    }
+
+    else if (
+        route ===
+        "account"
+    ) {
+
+        html =
+            account();
+
+    }
+
+    else if (
+        route.startsWith(
+            "admin"
+        )
+    ) {
+
+        html =
+            admin();
 
     }
 
     else {
 
-        app.innerHTML =
-            homePage();
+        html =
+            home();
 
     }
 
 
-    createModals();
-
-
-    if (
-        location.hash ===
-        "#packages"
-    ) {
-
-        setTimeout(
-            () =>
-                document
-                    .getElementById(
-                        "packages"
-                    )
-                    ?.scrollIntoView(),
-
-            10
-        );
-
-    }
-
-
-    if (
-        location.hash ===
-        "#book"
-    ) {
-
-        setTimeout(
-            () =>
-                document
-                    .getElementById(
-                        "book"
-                    )
-                    ?.scrollIntoView(),
-
-            10
-        );
-
-    }
+    $("#app").innerHTML =
+        html;
 
 }
 
 
 /* =================================================
-   HASH ROUTING
+   GLOBAL EVENTS
 ================================================= */
 
 window.addEventListener(
     "hashchange",
-    () => {
-
-        state.page =
-            location.hash
-                .replace(
-                    "#",
-                    ""
-                ) ||
-            "home";
-
-
-        render();
-
-    }
+    render
 );
+
+
+/* =================================================
+   GLOBAL FUNCTIONS
+================================================= */
+
+window.selectPackage =
+    selectPackage;
+
+window.openCheckout =
+    openCheckout;
+
+window.setMethod =
+    setMethod;
+
+window.demoPay =
+    demoPay;
+
+window.closeModal =
+    closeModal;
+
+window.loginSubmit =
+    loginSubmit;
+
+window.signupSubmit =
+    signupSubmit;
+
+window.logout =
+    logout;
+
+window.adminTab =
+    adminTab;
+
+window.completeBooking =
+    completeBooking;
+
+window.refund =
+    refund;
 
 
 /* =================================================
