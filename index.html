@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>CRZ — DJ Studio Bengaluru</title>
 
@@ -12,7 +16,11 @@
     >
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
 
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
@@ -25,10 +33,15 @@
 <body>
 
 <div class="noise"></div>
-<div class="orb orb-1"></div>
-<div class="orb orb-2"></div>
-<div class="orb orb-3"></div>
 <div class="grid-bg"></div>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+
+<!-- =========================
+     NAVBAR
+========================= -->
 
 <header class="navbar">
 
@@ -40,21 +53,30 @@
         <a href="#studio">Studio</a>
         <a href="#services">Services</a>
         <a href="#pricing">Pricing</a>
+        <a href="#music">Music</a>
         <a href="#book">Book</a>
     </nav>
 
-    <button class="nav-button" onclick="scrollToBooking()">
+    <button
+        class="nav-button"
+        onclick="scrollToBooking()"
+    >
         BOOK A SESSION
     </button>
 
 </header>
+
+
+<!-- =========================
+     HERO
+========================= -->
 
 <section id="home" class="hero">
 
     <div class="hero-content">
 
         <div class="eyebrow">
-            <span class="status-dot"></span>
+            <i></i>
             BENGALURU'S DJ PRACTICE STUDIO
         </div>
 
@@ -63,15 +85,19 @@
             <span>CREATE LOUDER.</span>
         </h1>
 
-        <p class="hero-description">
+        <p>
             A dedicated DJ environment built for practice,
             recording and performance.
         </p>
 
         <div class="hero-buttons">
 
-            <button class="primary-button" onclick="scrollToBooking()">
-                BOOK YOUR SESSION <span>↗</span>
+            <button
+                class="primary-button"
+                onclick="scrollToBooking()"
+            >
+                BOOK YOUR SESSION
+                <b>↗</b>
             </button>
 
             <button
@@ -87,54 +113,79 @@
 
             <div>
                 <strong>4</strong>
-                <span>CDJs</span>
+                <small>CDJs</small>
             </div>
 
             <div>
                 <strong>4</strong>
-                <span>CAMERAS</span>
+                <small>CAMERAS</small>
             </div>
 
             <div>
                 <strong>24/7</strong>
-                <span>CREATIVE ENERGY</span>
+                <small>CREATIVE ENERGY</small>
             </div>
 
         </div>
 
     </div>
 
+
+    <!-- DJ VISUAL -->
+
     <div class="hero-visual">
 
-        <div class="visual-glow"></div>
+        <div class="glow"></div>
 
-        <div class="deck">
+        <div
+            class="deck"
+            id="djDeck"
+        >
 
-            <div class="deck-header">
-                <span>CRZ // LIVE</span>
-                <span class="live">● LIVE</span>
+            <div class="deck-top">
+
+                <span>
+                    CRZ // LIVE
+                </span>
+
+                <em>
+                    ● LIVE
+                </em>
+
             </div>
 
-            <div class="waveform">
-                <span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span>
-            </div>
+            <div
+                class="waveform"
+                id="waveform"
+            ></div>
 
-            <div class="deck-controls">
+            <div class="deck-body">
 
                 <div class="jog"></div>
 
                 <div class="mixer">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
+
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                    <i></i>
+
                 </div>
 
-                <div class="jog jog-right"></div>
+                <div class="jog right"></div>
+
+            </div>
+
+            <div class="meters">
+
+                <i></i>
+                <i></i>
+                <i></i>
+                <i></i>
+                <i></i>
+                <i></i>
+                <i></i>
+                <i></i>
 
             </div>
 
@@ -144,177 +195,406 @@
 
 </section>
 
+
+<!-- =========================
+     MARQUEE
+========================= -->
+
 <div class="marquee">
 
-    <div class="marquee-track">
-        <span>DJ PRACTICE</span><i>✦</i>
-        <span>LIVE RECORDING</span><i>✦</i>
-        <span>MULTI-CAM VIDEO</span><i>✦</i>
-        <span>CRZ BENGALURU</span><i>✦</i>
-        <span>DJ PRACTICE</span><i>✦</i>
-        <span>LIVE RECORDING</span><i>✦</i>
+    <div>
+
+        <span>DJ PRACTICE</span>
+        ✦
+
+        <span>LIVE RECORDING</span>
+        ✦
+
+        <span>MULTI-CAM VIDEO</span>
+        ✦
+
+        <span>CRZ BENGALURU</span>
+        ✦
+
+        <span>DJ PRACTICE</span>
+        ✦
+
+        <span>LIVE RECORDING</span>
+        ✦
+
     </div>
 
 </div>
 
-<section id="studio" class="section">
 
-    <div class="section-heading">
+<!-- =========================
+     STUDIO
+========================= -->
+
+<section
+    id="studio"
+    class="section"
+>
+
+    <div class="heading">
 
         <div>
-            <span class="section-number">01 / THE SPACE</span>
+
+            <label>
+                01 / THE SPACE
+            </label>
 
             <h2>
                 BUILT FOR<br>
                 <span>THE BOOTH.</span>
             </h2>
+
         </div>
 
         <p>
-            CRZ is designed around the DJ — not around
-            unnecessary distractions. Walk in, plug in,
-            and play.
+            CRZ is designed around the DJ.
+            Walk in, plug in, and play.
         </p>
 
     </div>
 
-    <div class="feature-grid">
 
-        <article class="feature-card large">
-            <div class="feature-number">01</div>
-            <div class="feature-icon">◉</div>
-            <h3>4-CDJ SETUP</h3>
-            <p>Practice exactly like you're playing a proper club setup.</p>
-        </article>
+    <div class="features">
 
-        <article class="feature-card">
-            <div class="feature-number">02</div>
-            <div class="feature-icon">◈</div>
-            <h3>4 CAMERA ANGLES</h3>
-            <p>Front, left, right and overhead coverage.</p>
-        </article>
+        <article class="feature big">
 
-        <article class="feature-card">
-            <div class="feature-number">03</div>
-            <div class="feature-icon">◌</div>
-            <h3>STUDIO AUDIO</h3>
-            <p>Clean mixer output for professional recording.</p>
-        </article>
+            <b>01</b>
 
-        <article class="feature-card wide">
-            <div class="feature-number">04</div>
-            <div class="feature-icon">✦</div>
-            <h3>CONTROLLED LIGHTING</h3>
+            <strong>◉</strong>
+
+            <h3>
+                4-CDJ SETUP
+            </h3>
+
             <p>
-                Atmospheric lighting designed to make
-                your recordings look as good as they sound.
+                Practice exactly like you're
+                playing a proper club setup.
             </p>
+
+        </article>
+
+
+        <article class="feature">
+
+            <b>02</b>
+
+            <strong>◈</strong>
+
+            <h3>
+                4 CAMERA ANGLES
+            </h3>
+
+            <p>
+                Front, left, right and overhead
+                coverage.
+            </p>
+
+        </article>
+
+
+        <article class="feature">
+
+            <b>03</b>
+
+            <strong>◌</strong>
+
+            <h3>
+                STUDIO AUDIO
+            </h3>
+
+            <p>
+                Clean mixer output for
+                professional recording.
+            </p>
+
+        </article>
+
+
+        <article class="feature wide">
+
+            <b>04</b>
+
+            <strong>✦</strong>
+
+            <h3>
+                CONTROLLED LIGHTING
+            </h3>
+
+            <p>
+                Atmospheric lighting designed
+                to make your recordings look
+                as good as they sound.
+            </p>
+
         </article>
 
     </div>
 
 </section>
 
-<section id="services" class="section services-section">
 
-    <div class="section-heading">
+<!-- =========================
+     SERVICES
+========================= -->
+
+<section
+    id="services"
+    class="section"
+>
+
+    <div class="heading">
 
         <div>
-            <span class="section-number">02 / SERVICES</span>
+
+            <label>
+                02 / SERVICES
+            </label>
 
             <h2>
                 PICK YOUR<br>
                 <span>MODE.</span>
             </h2>
+
         </div>
 
     </div>
 
-    <div class="service-list">
 
-        <article class="service-card">
-            <div class="service-left">
-                <span class="service-index">01</span>
-                <div>
-                    <h3>PRACTICE</h3>
-                    <p>Full 4-CDJ setup + mixer + monitors.</p>
-                </div>
-            </div>
-            <div class="service-price">₹250<span>/hr</span></div>
-        </article>
+    <div class="services">
 
-        <article class="service-card featured">
-            <div class="service-left">
-                <span class="service-index">02</span>
-                <div>
-                    <h3>PRACTICE + AUDIO</h3>
-                    <p>Practice session with clean mixer audio recording.</p>
-                </div>
-            </div>
-            <div class="service-price">₹400<span>/hr</span></div>
-        </article>
+        <article>
 
-        <article class="service-card">
-            <div class="service-left">
-                <span class="service-index">03</span>
-                <div>
-                    <h3>PRACTICE + AUDIO + VIDEO</h3>
-                    <p>Practice with audio and multi-view camera recording.</p>
-                </div>
-            </div>
-            <div class="service-price">₹500<span>/hr</span></div>
-        </article>
+            <div>
 
-        <article class="service-card">
-            <div class="service-left">
-                <span class="service-index">04</span>
-                <div>
-                    <h3>EDITED RECORDING</h3>
+                <small>01</small>
+
+                <section>
+
+                    <h3>
+                        PRACTICE
+                    </h3>
+
                     <p>
-                        Multi-camera footage + clean audio +
-                        professionally edited final set.
+                        Full 4-CDJ setup +
+                        mixer + monitors.
                     </p>
-                </div>
+
+                </section>
+
             </div>
-            <div class="service-price">₹1,500<span>–₹2,000/hr</span></div>
+
+            <strong>
+                ₹250
+                <small>/hr</small>
+            </strong>
+
+        </article>
+
+
+        <article class="featured">
+
+            <div>
+
+                <small>02</small>
+
+                <section>
+
+                    <h3>
+                        PRACTICE + AUDIO
+                    </h3>
+
+                    <p>
+                        Practice session with
+                        clean mixer audio recording.
+                    </p>
+
+                </section>
+
+            </div>
+
+            <strong>
+                ₹400
+                <small>/hr</small>
+            </strong>
+
+        </article>
+
+
+        <article>
+
+            <div>
+
+                <small>03</small>
+
+                <section>
+
+                    <h3>
+                        PRACTICE + AUDIO + VIDEO
+                    </h3>
+
+                    <p>
+                        Practice with audio and
+                        multi-view camera recording.
+                    </p>
+
+                </section>
+
+            </div>
+
+            <strong>
+                ₹500
+                <small>/hr</small>
+            </strong>
+
+        </article>
+
+
+        <article>
+
+            <div>
+
+                <small>04</small>
+
+                <section>
+
+                    <h3>
+                        EDITED RECORDING
+                    </h3>
+
+                    <p>
+                        Multi-camera footage +
+                        clean audio + professionally
+                        edited final set.
+                    </p>
+
+                </section>
+
+            </div>
+
+            <strong>
+                ₹1,500
+                <small>–₹2,000/hr</small>
+            </strong>
+
         </article>
 
     </div>
 
 </section>
 
-<section id="pricing" class="section">
 
-    <div class="pricing-banner">
+<!-- =========================
+     PRICING
+========================= -->
+
+<section
+    id="pricing"
+    class="section"
+>
+
+    <div class="pricing">
 
         <div>
-            <span class="section-number">SIMPLE PRICING</span>
+
+            <label>
+                SIMPLE PRICING
+            </label>
 
             <h2>
                 YOU PLAY.<br>
                 <span>WE HANDLE THE REST.</span>
             </h2>
+
         </div>
 
-        <div class="pricing-note">
-            <div class="pulse-ring"></div>
-            <p>
-                No complicated packages.<br>
-                Pick what you need.
-            </p>
-        </div>
+        <p>
+            ✦<br>
+            No complicated packages.<br>
+            Pick what you need.
+        </p>
 
     </div>
 
 </section>
 
-<section id="book" class="booking-section">
 
-    <div class="booking-wrapper">
+<!-- =========================
+     MUSIC / SPOTIFY
+========================= -->
+
+<section
+    id="music"
+    class="music"
+>
+
+    <div class="heading">
+
+        <div>
+
+            <label>
+                CRZ // SOUND SYSTEM
+            </label>
+
+            <h2>
+                NOW<br>
+                <span>PLAYING.</span>
+            </h2>
+
+        </div>
+
+        <div
+            class="vinyl"
+            id="vinyl"
+        >
+            <b>CRZ</b>
+        </div>
+
+    </div>
+
+
+    <div class="spotify">
+
+        <iframe
+            src="https://open.spotify.com/embed/playlist/2ZZDx55XPetbf1RMHSVReX?utm_source=generator"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+        ></iframe>
+
+    </div>
+
+
+    <p class="disclaimer">
+        Music featured here is embedded through Spotify
+        for entertainment and demonstration purposes.
+        All rights to third-party music belong to their
+        respective copyright holders. CRZ does not claim
+        ownership of third-party music.
+    </p>
+
+</section>
+
+
+<!-- =========================
+     BOOKING
+========================= -->
+
+<section
+    id="book"
+    class="booking"
+>
+
+    <div class="booking-wrap">
 
         <div class="booking-info">
 
-            <span class="section-number">03 / RESERVE</span>
+            <label>
+                03 / RESERVE
+            </label>
 
             <h2>
                 BOOK<br>
@@ -323,98 +603,94 @@
 
             <p>
                 Select your date, time and service.
-                Available slots update automatically.
+                Your request is sent to CRZ for confirmation.
             </p>
 
-            <div class="booking-note">
-                <span>✦</span>
-                Payment is collected securely at checkout.
+            <div class="note">
+                ✦ Payment is collected separately
+                after confirmation.
             </div>
 
         </div>
 
-        <div class="booking-card">
 
-            <div class="booking-progress">
-                <span class="active">01</span>
-                <i></i>
-                <span>02</span>
-                <i></i>
-                <span>03</span>
-            </div>
+        <div class="card">
 
-            <div class="form-group">
+            <div class="row">
 
-                <label>NAME</label>
+                <label>
+                    NAME
 
-                <input
-                    id="bookingName"
-                    type="text"
-                    placeholder="Your name"
-                    autocomplete="name"
-                >
+                    <input
+                        id="bookingName"
+                        placeholder="Your name"
+                    >
+
+                </label>
 
             </div>
 
-            <div class="form-row">
 
-                <div class="form-group">
+            <div class="two">
 
-                    <label>EMAIL</label>
+                <label>
+                    EMAIL
 
                     <input
                         id="bookingEmail"
                         type="email"
                         placeholder="you@email.com"
-                        autocomplete="email"
                     >
 
-                </div>
+                </label>
 
-                <div class="form-group">
 
-                    <label>PHONE</label>
+                <label>
+                    PHONE
 
                     <input
                         id="bookingPhone"
                         type="tel"
-                        placeholder="+91XXXXXXXXXX"
-                        autocomplete="tel"
+                        placeholder="+91"
                     >
 
-                </div>
+                </label>
 
             </div>
 
-            <div class="form-row">
 
-                <div class="form-group">
+            <div class="two">
 
-                    <label>DATE</label>
+                <label>
+                    DATE
 
-                    <input id="bookingDate" type="date">
+                    <input
+                        id="bookingDate"
+                        type="date"
+                    >
 
-                </div>
+                </label>
 
-                <div class="form-group">
 
-                    <label>TIME</label>
+                <label>
+                    TIME
 
-                    <select id="bookingTime">
-                        <option value="">Select time</option>
-                    </select>
+                    <select id="bookingTime"></select>
 
-                </div>
+                </label>
 
             </div>
 
-            <div class="form-group">
 
-                <label>SERVICE</label>
+            <label>
+
+                SERVICE
 
                 <select id="bookingService">
 
-                    <option value="">Select service</option>
+                    <option value="">
+                        Select service
+                    </option>
 
                     <option value="250">
                         Practice — ₹250/hr
@@ -434,27 +710,32 @@
 
                 </select>
 
+            </label>
+
+
+            <div class="total">
+
+                <span>
+                    TOTAL
+                </span>
+
+                <b id="bookingTotal">
+                    ₹0
+                </b>
+
             </div>
 
-            <div id="slotStatus" class="slot-status"></div>
-
-            <div class="booking-total">
-                <span>TOTAL</span>
-                <strong id="bookingTotal">₹0</strong>
-            </div>
 
             <button
-                class="checkout-button"
-                id="checkoutButton"
+                class="checkout"
                 onclick="createBooking()"
             >
-                CONTINUE TO PAYMENT
-                <span>↗</span>
+                REQUEST BOOKING ↗
             </button>
 
-            <p class="secure-note">
-                🔒 Secure checkout · CRZ
-            </p>
+            <small class="secure">
+                CRZ booking request · Email + SMS confirmation
+            </small>
 
         </div>
 
@@ -462,33 +743,93 @@
 
 </section>
 
+
+<!-- =========================
+     TEST NOTIFICATION
+========================= -->
+
+<section class="test">
+
+    <div>
+
+        <label>
+            DEVELOPMENT
+        </label>
+
+        <h3>
+            TEST EMAIL / SMS
+        </h3>
+
+        <p>
+            Uses the CRZ backend notification endpoints.
+        </p>
+
+    </div>
+
+    <button
+        class="secondary-button"
+        onclick="sendTestNotification()"
+    >
+        SEND TEST
+    </button>
+
+</section>
+
+
+<!-- =========================
+     FOOTER
+========================= -->
+
 <footer>
 
-    <div class="footer-logo">
+    <div class="logo">
         CRZ<span>.</span>
     </div>
 
-    <p>PRACTICE. RECORD. CREATE.</p>
+    <p>
+        PRACTICE. RECORD. CREATE.
+    </p>
 
-    <div class="footer-right">
+    <p>
         BENGALURU · INDIA
-    </div>
+    </p>
 
 </footer>
 
-<button class="admin-trigger" onclick="openAdminLogin()">
+
+<!-- =========================
+     ADMIN BUTTON
+========================= -->
+
+<button
+    class="admin-trigger"
+    onclick="openAdminLogin()"
+>
     ADMIN
 </button>
 
-<div id="adminModal" class="modal">
+
+<!-- =========================
+     ADMIN LOGIN
+========================= -->
+
+<div
+    id="adminModal"
+    class="modal"
+>
 
     <div class="modal-box">
 
-        <button class="close-modal" onclick="closeAdminLogin()">
+        <button
+            class="close"
+            onclick="closeAdminLogin()"
+        >
             ×
         </button>
 
-        <span class="section-number">CRZ // ADMIN</span>
+        <label>
+            CRZ // ADMIN
+        </label>
 
         <h2>
             ADMIN<br>
@@ -507,95 +848,125 @@
             placeholder="Password"
         >
 
-        <button class="checkout-button" onclick="adminLogin()">
+        <button
+            class="checkout"
+            onclick="adminLogin()"
+        >
             LOGIN
         </button>
-
-        <p id="adminLoginError" class="error-text"></p>
 
     </div>
 
 </div>
 
-<div id="dashboard" class="dashboard">
 
-    <div class="dashboard-header">
+<!-- =========================
+     ADMIN DASHBOARD
+========================= -->
+
+<div
+    id="dashboard"
+    class="dashboard"
+>
+
+    <div class="dash-head">
 
         <div>
-            <span class="section-number">CRZ // CONTROL</span>
-            <h2>ADMIN DASHBOARD</h2>
+
+            <label>
+                CRZ // CONTROL
+            </label>
+
+            <h2>
+                ADMIN DASHBOARD
+            </h2>
+
         </div>
 
-        <button class="secondary-button" onclick="logoutAdmin()">
+        <button
+            class="secondary-button"
+            onclick="logoutAdmin()"
+        >
             LOG OUT
         </button>
 
     </div>
 
-    <div class="dashboard-stats">
+
+    <div class="stats">
 
         <div>
-            <span>TODAY</span>
-            <strong id="todayCount">0</strong>
+            <small>TODAY</small>
+            <b id="todayCount">0</b>
         </div>
 
         <div>
-            <span>FUTURE</span>
-            <strong id="futureCount">0</strong>
+            <small>FUTURE</small>
+            <b id="futureCount">0</b>
         </div>
 
         <div>
-            <span>COMPLETED</span>
-            <strong id="completedCount">0</strong>
+            <small>COMPLETED</small>
+            <b id="completedCount">0</b>
         </div>
 
         <div>
-            <span>REVENUE</span>
-            <strong id="revenue">₹0</strong>
+            <small>REVENUE</small>
+            <b id="revenue">₹0</b>
         </div>
 
     </div>
 
-    <div class="admin-columns">
 
-        <div class="admin-panel">
+    <div class="admin-grid">
 
-            <div class="admin-panel-title">
-                <h3>BOOKINGS</h3>
-                <button onclick="loadAdminDashboard()">REFRESH</button>
+        <div class="panel">
+
+            <div class="panel-title">
+
+                <h3>
+                    BOOKINGS
+                </h3>
+
+                <button onclick="clearBookings()">
+                    CLEAR
+                </button>
+
             </div>
 
-            <div id="bookingList">
-                <p class="empty">No bookings yet.</p>
-            </div>
+            <div id="bookingList"></div>
 
         </div>
 
-        <div class="admin-panel">
 
-            <div class="admin-panel-title">
-                <h3>BLOCK TIME</h3>
+        <div class="panel">
+
+            <div class="panel-title">
+
+                <h3>
+                    BLOCK TIME
+                </h3>
+
             </div>
 
-            <input id="blockDate" type="date">
+            <input
+                id="blockDate"
+                type="date"
+            >
 
             <select id="blockTime"></select>
 
             <input
                 id="blockReason"
-                placeholder="Reason — e.g. maintenance"
+                placeholder="Reason"
             >
 
             <button
-                class="checkout-button"
+                class="checkout"
                 onclick="blockTime()"
             >
                 BLOCK SLOT
             </button>
-
-            <div class="admin-subtitle">
-                BLOCKED SLOTS
-            </div>
 
             <div id="blockedList"></div>
 
@@ -605,9 +976,12 @@
 
 </div>
 
-<div id="toast" class="toast"></div>
 
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<!-- TOAST -->
+
+<div id="toast"></div>
+
+
 <script src="script.js"></script>
 
 </body>
