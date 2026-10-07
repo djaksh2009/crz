@@ -1,1281 +1,828 @@
-require("dotenv").config();
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import crypto from "crypto";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const express = require("express");
-const cors = require("cors");
-const jwt = require("jsonwebtoken");
-const admin = require("firebase-admin");
-const nodemailer = require("nodemailer");
-const twilio = require("twilio");
+dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-/* =====================================================
-   FIREBASE
-===================================================== */
-
-admin.initializeApp({
-    credential:
-        admin.credential.cert({
-            projectId:
-                process.env.FIREBASE_PROJECT_ID,
-
-            clientEmail:
-                process.env.FIREBASE_CLIENT_EMAIL,
-
-            privateKey:
-                process.env.FIREBASE_PRIVATE_KEY
-                    .replace(/\\n/g, "\n")
-        })
-});
-
-
-const db =
-    admin.firestore();
-
+const app = express();
+const PORT = process.env.PORT || 5000;
 
 /* =====================================================
-   EXPRESS
+   MIDDLEWARE
 ===================================================== */
-
-const app =
-    express();
-
 
 app.use(
-    cors({
-        origin: true
-    })
+  cors({
+    origin: true,
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
 );
 
-
-app.use(
-    express.json()
-);
-
+app.use(express.json());
 
 /* =====================================================
-   EMAIL
+   DATA STORAGE
 ===================================================== */
 
-const mailer =
-    nodemailer.createTransport({
+const DATA_DIR = path.join(__dirname, "data");
 
-        host:
-            process.env.SMTP_HOST,
-
-        port:
-            Number(
-                process.env.SMTP_PORT || 465
-            ),
-
-        secure:
-            process.env.SMTP_SECURE === "true",
-
-        auth: {
-
-            user:
-                process.env.SMTP_USER,
-
-            pass:
-                process.env.SMTP_PASSWORD
-
-        }
-
-    });
-
-
-/* =====================================================
-   SMS
-===================================================== */
-
-let smsClient =
-    null;
-
-
-if (
-    process.env.TWILIO_ACCOUNT_SID &&
-    process.env.TWILIO_AUTH_TOKEN
-) {
-
-    smsClient =
-        twilio(
-            process.env.TWILIO_ACCOUNT_SID,
-            process.env.TWILIO_AUTH_TOKEN
-        );
-
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
+const BOOKINGS_FILE = path.join(DATA_DIR, "bookings.json");
+const BLOCKED_FILE = path.join(DATA_DIR, "blocked.json");
+
+function ensureFile(file, fallback = []) {
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(
+      file,
+      JSON.stringify(fallback, null, 2),
+      "utf8"
+    );
+  }
+}
+
+ensureFile(BOOKINGS_FILE, []);
+ensureFile(BLOCKED_FILE, []);
+
+function readJSON(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+function writeJSON(file, data) {
+  fs.writeFileSync(
+    file,
+    JSON.stringify(data, null, 2),
+    "utf8"
+  );
+}
 
 /* =====================================================
    HELPERS
 ===================================================== */
 
-function createToken() {
-
-    return jwt.sign(
-        {
-            role: "admin"
-        },
-
-        process.env.JWT_SECRET,
-
-        {
-            expiresIn: "12h"
-        }
-    );
-
+function generateId(prefix = "crz") {
+  return `${prefix}_${Date.now()}_${crypto
+    .randomBytes(4)
+    .toString("hex")}`;
 }
 
-
-function authenticateAdmin(
-    req,
-    res,
-    next
-) {
-
-    const header =
-        req.headers.authorization || "";
-
-
-    const token =
-        header.startsWith("Bearer ")
-            ? header.slice(7)
-            : null;
-
-
-    if (!token)
-        return res
-            .status(401)
-            .json({
-                message:
-                    "Admin authentication required."
-            });
-
-
-    try {
-
-        req.admin =
-            jwt.verify(
-                token,
-                process.env.JWT_SECRET
-            );
-
-
-        next();
-
-    } catch {
-
-        res
-            .status(401)
-            .json({
-                message:
-                    "Invalid or expired admin session."
-            });
-
-    }
-
+function slotId(date, time) {
+  return `${date}_${time}`.replace(
+    /[^a-zA-Z0-9_-]/g,
+    "_"
+  );
 }
 
+function adminToken(req) {
+  const auth = req.headers.authorization || "";
+
+  if (!auth.startsWith("Bearer ")) {
+    return null;
+  }
+
+  return auth.slice(7);
+}
+
+function checkAdmin(req, res, next) {
+  const token = adminToken(req);
+
+  if (
+    !token ||
+    token !== process.env.ADMIN_TOKEN
+  ) {
+    return res.status(401).json({
+      error: "Unauthorized.",
+    });
+  }
+
+  next();
+}
 
 /* =====================================================
-   NOTIFICATIONS
+   SERVICES
 ===================================================== */
 
-async function sendEmail(
-    to,
-    subject,
-    html
-) {
+const SERVICES = {
+  "250": {
+    id: 250,
+    name: "Practice",
+    price: 250,
+  },
 
-    if (!process.env.SMTP_USER)
-        return;
+  "400": {
+    id: 400,
+    name: "Practice + Audio",
+    price: 400,
+  },
 
+  "500": {
+    id: 500,
+    name: "Practice + Audio + Video",
+    price: 500,
+  },
 
-    await mailer.sendMail({
+  "1500": {
+    id: 1500,
+    name: "Edited Recording",
+    price: 1500,
+  },
+};
 
-        from:
-            `"CRZ DJ Studio" <${process.env.SMTP_USER}>`,
-
-        to,
-
-        subject,
-
-        html
-
-    });
-
-}
-
-
-async function sendSMS(
-    phone,
-    message
-) {
-
-    if (
-        !smsClient ||
-        !process.env.TWILIO_PHONE_NUMBER
-    )
-        return;
-
-
-    await smsClient.messages.create({
-
-        body:
-            message,
-
-        from:
-            process.env.TWILIO_PHONE_NUMBER,
-
-        to:
-            phone
-
-    });
-
-}
-
-
-/* =====================================================
-   HEALTH
-===================================================== */
-
-app.get(
-    "/api/health",
-    (req,res) => {
-
-        res.json({
-
-            success:
-                true,
-
-            service:
-                "CRZ Backend",
-
-            status:
-                "online"
-
-        });
-
-    }
-);
-
+app.get("/api/services", (req, res) => {
+  res.json({
+    services: Object.values(SERVICES),
+  });
+});
 
 /* =====================================================
    AVAILABILITY
 ===================================================== */
 
-app.get(
-    "/api/availability",
-    async (req,res) => {
+function getAvailability(date) {
+  const bookings = readJSON(BOOKINGS_FILE);
+  const blocked = readJSON(BLOCKED_FILE);
 
-        try {
+  const bookedSlots = bookings
+    .filter(
+      (booking) =>
+        booking.date === date &&
+        booking.status !== "cancelled"
+    )
+    .map((booking) => ({
+      time: booking.time,
+      bookingId: booking.id,
+    }));
 
-            const date =
-                req.query.date;
+  const blockedSlots = blocked
+    .filter((slot) => slot.date === date)
+    .map((slot) => ({
+      time: slot.time,
+      id: slot.id,
+      reason: slot.reason,
+    }));
 
+  return {
+    date,
+    bookedSlots,
+    blockedSlots,
 
-            if (!date)
-                return res
-                    .status(400)
-                    .json({
-                        message:
-                            "Date required."
-                    });
+    // Compatibility with older frontend code
+    bookings: bookedSlots,
+    blocked: blockedSlots,
+  };
+}
 
+/*
+   Supports BOTH:
 
-            const bookingsSnapshot =
-                await db
-                    .collection("bookings")
-                    .where(
-                        "date",
-                        "==",
-                        date
-                    )
-                    .get();
+   GET  /api/availability?date=2026-10-08
+   POST /api/availability
+*/
 
+app.get("/api/availability", (req, res) => {
+  try {
+    const { date } = req.query;
 
-            const blockedSnapshot =
-                await db
-                    .collection("blockedSlots")
-                    .where(
-                        "date",
-                        "==",
-                        date
-                    )
-                    .get();
-
-
-            const bookings =
-                bookingsSnapshot.docs.map(
-                    doc => ({
-                        id:
-                            doc.id,
-
-                        ...doc.data()
-                    })
-                );
-
-
-            const blocked =
-                blockedSnapshot.docs.map(
-                    doc => ({
-                        id:
-                            doc.id,
-
-                        ...doc.data()
-                    })
-                );
-
-
-            res.json({
-
-                bookings,
-
-                blocked
-
-            });
-
-
-        } catch (error) {
-
-            console.error(error);
-
-
-            res
-                .status(500)
-                .json({
-                    message:
-                        "Availability check failed."
-                });
-
-        }
-
+    if (!date) {
+      return res.status(400).json({
+        error: "Date is required.",
+      });
     }
-);
 
+    res.json(getAvailability(date));
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: "Unable to load availability.",
+    });
+  }
+});
+
+app.post("/api/availability", (req, res) => {
+  try {
+    const { date } = req.body;
+
+    if (!date) {
+      return res.status(400).json({
+        error: "Date is required.",
+      });
+    }
+
+    res.json(getAvailability(date));
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: "Unable to load availability.",
+    });
+  }
+});
 
 /* =====================================================
    CREATE BOOKING
 ===================================================== */
 
-app.post(
-    "/api/bookings",
-    async (req,res) => {
-
-        try {
-
-            const {
-
-                name,
-                email,
-                phone,
-                date,
-                time,
-                service,
-                serviceName,
-                amount
-
-            } = req.body;
-
-
-            if (
-                !name ||
-                !email ||
-                !phone ||
-                !date ||
-                !time ||
-                !service
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        message:
-                            "Complete booking details required."
-                    });
-
-            }
-
-
-            /*
-               Transaction prevents two people
-               booking the same slot simultaneously.
-            */
-
-            const bookingRef =
-                db
-                    .collection("bookings")
-                    .doc();
-
-
-            const result =
-                await db.runTransaction(
-                    async transaction => {
-
-                        const bookingsSnapshot =
-                            await transaction.get(
-                                db
-                                    .collection("bookings")
-                                    .where(
-                                        "date",
-                                        "==",
-                                        date
-                                    )
-                            );
-
-
-                        const blockedSnapshot =
-                            await transaction.get(
-                                db
-                                    .collection("blockedSlots")
-                                    .where(
-                                        "date",
-                                        "==",
-                                        date
-                                    )
-                            );
-
-
-                        const alreadyBooked =
-                            bookingsSnapshot.docs.some(
-                                doc => {
-
-                                    const data =
-                                        doc.data();
-
-                                    return (
-                                        data.time === time &&
-                                        data.status !== "cancelled"
-                                    );
-
-                                }
-                            );
-
-
-                        const blocked =
-                            blockedSnapshot.docs.some(
-                                doc =>
-                                    doc.data().time === time
-                            );
-
-
-                        if (
-                            alreadyBooked ||
-                            blocked
-                        ) {
-
-                            throw new Error(
-                                "SLOT_UNAVAILABLE"
-                            );
-
-                        }
-
-
-                        const booking = {
-
-                            name,
-
-                            email,
-
-                            phone,
-
-                            date,
-
-                            time,
-
-                            service,
-
-                            serviceName,
-
-                            amount:
-
-                                Number(
-                                    amount || 0
-                                ),
-
-                            status:
-                                "pending",
-
-                            paymentStatus:
-                                "pending",
-
-                            createdAt:
-                                admin.firestore
-                                    .FieldValue
-                                    .serverTimestamp()
-
-                        };
-
-
-                        transaction.set(
-                            bookingRef,
-                            booking
-                        );
-
-
-                        return booking;
-
-                    }
-                );
-
-
-            /*
-               Customer receives a request
-               acknowledgement.
-
-               This is NOT payment confirmation.
-            */
-
-            await sendEmail(
-
-                email,
-
-                "CRZ Booking Request Received",
-
-                `
-                <h2>CRZ — Booking Request</h2>
-
-                <p>Hi ${name},</p>
-
-                <p>
-                    We received your booking request.
-                </p>
-
-                <p>
-                    <b>Date:</b> ${date}<br>
-                    <b>Time:</b> ${time}<br>
-                    <b>Service:</b> ${serviceName}
-                </p>
-
-                <p>
-                    Your booking is currently pending.
-                    CRZ will confirm payment and the booking separately.
-                </p>
-                `
-
-            );
-
-
-            await sendSMS(
-
-                phone,
-
-                `CRZ: Booking request received for ${date}, ${time}. Your booking is pending confirmation.`
-
-            );
-
-
-            /*
-               Notify admin.
-            */
-
-            await sendEmail(
-
-                process.env.CRZ_ADMIN_EMAIL,
-
-                "New CRZ Booking Request",
-
-                `
-                <h2>New CRZ Booking</h2>
-
-                <p>
-                    <b>Name:</b> ${name}<br>
-                    <b>Email:</b> ${email}<br>
-                    <b>Phone:</b> ${phone}<br>
-                    <b>Date:</b> ${date}<br>
-                    <b>Time:</b> ${time}<br>
-                    <b>Service:</b> ${serviceName}<br>
-                    <b>Amount:</b> ₹${amount}
-                </p>
-                `
-
-            );
-
-
-            res.json({
-
-                success:
-                    true,
-
-                bookingId:
-                    bookingRef.id,
-
-                message:
-                    "Booking request received."
-
-            });
-
-
-        } catch (error) {
-
-            if (
-                error.message ===
-                "SLOT_UNAVAILABLE"
-            ) {
-
-                return res
-                    .status(409)
-                    .json({
-                        message:
-                            "That slot is already booked or unavailable."
-                    });
-
-            }
-
-
-            console.error(error);
-
-
-            res
-                .status(500)
-                .json({
-                    message:
-                        "Could not create booking."
-                });
-
-        }
-
+app.post("/api/bookings", (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      phone,
+      date,
+      time,
+      service,
+      serviceId,
+      serviceName,
+      notes,
+    } = req.body;
+
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !date ||
+      !time
+    ) {
+      return res.status(400).json({
+        error:
+          "Name, email, phone, date and time are required.",
+      });
     }
-);
 
+    const selectedService =
+      serviceId ||
+      service ||
+      "250";
+
+    const serviceInfo =
+      SERVICES[String(selectedService)];
+
+    if (!serviceInfo) {
+      return res.status(400).json({
+        error: "Invalid service.",
+      });
+    }
+
+    const bookings = readJSON(BOOKINGS_FILE);
+    const blocked = readJSON(BLOCKED_FILE);
+
+    const alreadyBooked = bookings.some(
+      (booking) =>
+        booking.date === date &&
+        booking.time === time &&
+        booking.status !== "cancelled"
+    );
+
+    if (alreadyBooked) {
+      return res.status(409).json({
+        error:
+          "That time slot is already booked.",
+      });
+    }
+
+    const isBlocked = blocked.some(
+      (slot) =>
+        slot.date === date &&
+        slot.time === time
+    );
+
+    if (isBlocked) {
+      return res.status(409).json({
+        error:
+          "That time slot is blocked.",
+      });
+    }
+
+    const booking = {
+      id: generateId("booking"),
+
+      name: String(name).trim(),
+      email: String(email).trim(),
+      phone: String(phone).trim(),
+
+      date,
+      time,
+
+      service: serviceInfo.id,
+
+      serviceName:
+        serviceName || serviceInfo.name,
+
+      total: serviceInfo.price,
+
+      notes:
+        notes
+          ? String(notes).trim()
+          : "",
+
+      status: "confirmed",
+
+      createdAt:
+        new Date().toISOString(),
+    };
+
+    bookings.push(booking);
+
+    writeJSON(
+      BOOKINGS_FILE,
+      bookings
+    );
+
+    return res.status(201).json({
+      success: true,
+      booking,
+      bookingId: booking.id,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error:
+        "Unable to create booking.",
+    });
+  }
+});
+
+/* =====================================================
+   GET BOOKING
+===================================================== */
+
+app.get("/api/bookings/:id", (req, res) => {
+  try {
+    const bookings = readJSON(BOOKINGS_FILE);
+
+    const booking = bookings.find(
+      (item) => item.id === req.params.id
+    );
+
+    if (!booking) {
+      return res.status(404).json({
+        error: "Booking not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      booking,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error:
+        "Unable to find booking.",
+    });
+  }
+});
+
+/* =====================================================
+   CANCEL BOOKING
+===================================================== */
+
+app.post(
+  "/api/bookings/:id/cancel",
+  (req, res) => {
+    try {
+      const bookings = readJSON(
+        BOOKINGS_FILE
+      );
+
+      const index = bookings.findIndex(
+        (booking) =>
+          booking.id === req.params.id
+      );
+
+      if (index === -1) {
+        return res.status(404).json({
+          error:
+            "Booking not found.",
+        });
+      }
+
+      bookings[index].status =
+        "cancelled";
+
+      bookings[index].cancelledAt =
+        new Date().toISOString();
+
+      writeJSON(
+        BOOKINGS_FILE,
+        bookings
+      );
+
+      res.json({
+        success: true,
+        booking: bookings[index],
+      });
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error:
+          "Unable to cancel booking.",
+      });
+    }
+  }
+);
 
 /* =====================================================
    ADMIN LOGIN
 ===================================================== */
 
 app.post(
-    "/api/admin/login",
-    (req,res) => {
+  "/api/admin/login",
+  (req, res) => {
+    const {
+      email,
+      password,
+    } = req.body;
 
-        const {
-            email,
-            password
-        } = req.body;
-
-
-        if (
-            email !==
-                process.env.ADMIN_EMAIL ||
-            password !==
-                process.env.ADMIN_PASSWORD
-        ) {
-
-            return res
-                .status(401)
-                .json({
-                    message:
-                        "Invalid admin credentials."
-                });
-
-        }
-
-
-        res.json({
-
-            success:
-                true,
-
-            token:
-                createToken()
-
-        });
-
+    if (
+      email !==
+        process.env.ADMIN_EMAIL ||
+      password !==
+        process.env.ADMIN_PASSWORD
+    ) {
+      return res.status(401).json({
+        error:
+          "Invalid email or password.",
+      });
     }
-);
 
+    res.json({
+      success: true,
+      token:
+        process.env.ADMIN_TOKEN,
+    });
+  }
+);
 
 /* =====================================================
    ADMIN DASHBOARD
 ===================================================== */
 
 app.get(
-    "/api/admin/dashboard",
-    authenticateAdmin,
-    async (req,res) => {
+  "/api/admin/dashboard",
+  checkAdmin,
+  (req, res) => {
+    try {
+      const bookings =
+        readJSON(BOOKINGS_FILE);
 
-        try {
+      const blockedSlots =
+        readJSON(BLOCKED_FILE);
 
-            const snapshot =
-                await db
-                    .collection("bookings")
-                    .orderBy(
-                        "createdAt",
-                        "desc"
-                    )
-                    .get();
+      const today =
+        new Date()
+          .toISOString()
+          .slice(0, 10);
 
+      const confirmed =
+        bookings.filter(
+          (booking) =>
+            booking.status ===
+            "confirmed"
+        );
 
-            const bookings =
-                snapshot.docs.map(
-                    doc => ({
-                        id:
-                            doc.id,
+      const todayCount =
+        confirmed.filter(
+          (booking) =>
+            booking.date === today
+        ).length;
 
-                        ...doc.data()
-                    })
-                );
+      const futureCount =
+        confirmed.filter(
+          (booking) =>
+            booking.date > today
+        ).length;
 
+      const completedCount =
+        confirmed.filter(
+          (booking) =>
+            booking.date < today
+        ).length;
 
-            const blockedSnapshot =
-                await db
-                    .collection("blockedSlots")
-                    .orderBy(
-                        "date"
-                    )
-                    .get();
+      const revenue =
+        confirmed.reduce(
+          (sum, booking) =>
+            sum +
+            Number(
+              booking.total || 0
+            ),
+          0
+        );
 
+      res.json({
+        bookings:
+          [...bookings].reverse(),
 
-            const blocked =
-                blockedSnapshot.docs.map(
-                    doc => ({
-                        id:
-                            doc.id,
+        blockedSlots,
 
-                        ...doc.data()
-                    })
-                );
+        stats: {
+          today: todayCount,
+          future: futureCount,
+          completed:
+            completedCount,
+          revenue,
+        },
+      });
+    } catch (error) {
+      console.error(error);
 
-
-            const today =
-                new Date()
-                    .toISOString()
-                    .slice(0,10);
-
-
-            const todayCount =
-                bookings.filter(
-                    b =>
-                        b.date === today &&
-                        b.status !== "cancelled"
-                ).length;
-
-
-            const futureCount =
-                bookings.filter(
-                    b =>
-                        b.date > today &&
-                        b.status !== "cancelled"
-                ).length;
-
-
-            const pendingPaymentCount =
-                bookings.filter(
-                    b =>
-                        b.paymentStatus ===
-                        "pending" &&
-                        b.status !==
-                        "cancelled"
-                ).length;
-
-
-            const revenue =
-                bookings
-                    .filter(
-                        b =>
-                            b.paymentStatus ===
-                            "confirmed"
-                    )
-                    .reduce(
-                        (
-                            total,
-                            b
-                        ) =>
-                            total +
-                            Number(
-                                b.amount || 0
-                            ),
-                        0
-                    );
-
-
-            res.json({
-
-                bookings,
-
-                blocked,
-
-                todayCount,
-
-                futureCount,
-
-                pendingPaymentCount,
-
-                revenue
-
-            });
-
-
-        } catch (error) {
-
-            console.error(error);
-
-
-            res
-                .status(500)
-                .json({
-                    message:
-                        "Dashboard failed."
-                });
-
-        }
-
+      res.status(500).json({
+        error:
+          "Dashboard failed.",
+      });
     }
+  }
 );
 
-
 /* =====================================================
-   PAYMENT CONFIRMED
-===================================================== */
-
-app.post(
-    "/api/admin/bookings/:id/payment",
-    authenticateAdmin,
-    async (req,res) => {
-
-        try {
-
-            const ref =
-                db
-                    .collection("bookings")
-                    .doc(
-                        req.params.id
-                    );
-
-
-            const snapshot =
-                await ref.get();
-
-
-            if (!snapshot.exists)
-                return res
-                    .status(404)
-                    .json({
-                        message:
-                            "Booking not found."
-                    });
-
-
-            const booking =
-                snapshot.data();
-
-
-            await ref.update({
-
-                paymentStatus:
-                    "confirmed",
-
-                paymentConfirmedAt:
-                    admin.firestore
-                        .FieldValue
-                        .serverTimestamp()
-
-            });
-
-
-            /*
-               Payment confirmation email.
-            */
-
-            await sendEmail(
-
-                booking.email,
-
-                "CRZ Payment Confirmed",
-
-                `
-                <h2>CRZ — Payment Confirmed</h2>
-
-                <p>
-                    Hi ${booking.name},
-                </p>
-
-                <p>
-                    Your payment has been confirmed.
-                </p>
-
-                <p>
-                    <b>Date:</b> ${booking.date}<br>
-                    <b>Time:</b> ${booking.time}<br>
-                    <b>Service:</b> ${booking.serviceName}
-                </p>
-
-                <p>
-                    Your booking is now ready for final confirmation.
-                </p>
-                `
-
-            );
-
-
-            await sendSMS(
-
-                booking.phone,
-
-                `CRZ: Payment confirmed for your ${booking.date} ${booking.time} session. Booking confirmation will follow.`
-
-            );
-
-
-            res.json({
-
-                success:
-                    true
-
-            });
-
-
-        } catch (error) {
-
-            console.error(error);
-
-
-            res
-                .status(500)
-                .json({
-                    message:
-                        "Could not confirm payment."
-                });
-
-        }
-
-    }
-);
-
-
-/* =====================================================
-   BOOKING CONFIRMED
-===================================================== */
-
-app.post(
-    "/api/admin/bookings/:id/confirm",
-    authenticateAdmin,
-    async (req,res) => {
-
-        try {
-
-            const ref =
-                db
-                    .collection("bookings")
-                    .doc(
-                        req.params.id
-                    );
-
-
-            const snapshot =
-                await ref.get();
-
-
-            if (!snapshot.exists)
-                return res
-                    .status(404)
-                    .json({
-                        message:
-                            "Booking not found."
-                    });
-
-
-            const booking =
-                snapshot.data();
-
-
-            if (
-                booking.paymentStatus !==
-                "confirmed"
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        message:
-                            "Payment must be confirmed first."
-                    });
-
-            }
-
-
-            await ref.update({
-
-                status:
-                    "confirmed",
-
-                confirmedAt:
-                    admin.firestore
-                        .FieldValue
-                        .serverTimestamp()
-
-            });
-
-
-            /*
-               Booking confirmation email.
-            */
-
-            await sendEmail(
-
-                booking.email,
-
-                "CRZ Booking Confirmed",
-
-                `
-                <h2>CRZ — Booking Confirmed</h2>
-
-                <p>
-                    Hi ${booking.name},
-                </p>
-
-                <p>
-                    Your CRZ session is officially confirmed.
-                </p>
-
-                <p>
-                    <b>Date:</b> ${booking.date}<br>
-                    <b>Time:</b> ${booking.time}<br>
-                    <b>Service:</b> ${booking.serviceName}
-                </p>
-
-                <p>
-                    See you at CRZ Bengaluru.
-                </p>
-                `
-
-            );
-
-
-            await sendSMS(
-
-                booking.phone,
-
-                `CRZ: Your booking is CONFIRMED for ${booking.date}, ${booking.time}. See you at CRZ Bengaluru.`
-
-            );
-
-
-            res.json({
-
-                success:
-                    true
-
-            });
-
-
-        } catch (error) {
-
-            console.error(error);
-
-
-            res
-                .status(500)
-                .json({
-                    message:
-                        "Could not confirm booking."
-                });
-
-        }
-
-    }
-);
-
-
-/* =====================================================
-   STATUS
+   ADMIN UPDATE BOOKING STATUS
 ===================================================== */
 
 app.patch(
-    "/api/admin/bookings/:id/status",
-    authenticateAdmin,
-    async (req,res) => {
+  "/api/admin/bookings/:id",
+  checkAdmin,
+  (req, res) => {
+    try {
+      const {
+        status,
+      } = req.body;
 
-        try {
+      const allowedStatuses = [
+        "confirmed",
+        "cancelled",
+        "completed",
+      ];
 
-            const status =
-                req.body.status;
+      if (
+        !allowedStatuses.includes(
+          status
+        )
+      ) {
+        return res.status(400).json({
+          error:
+            "Invalid booking status.",
+        });
+      }
 
+      const bookings =
+        readJSON(BOOKINGS_FILE);
 
-            const allowed = [
+      const index =
+        bookings.findIndex(
+          (booking) =>
+            booking.id ===
+            req.params.id
+        );
 
-                "pending",
+      if (index === -1) {
+        return res.status(404).json({
+          error:
+            "Booking not found.",
+        });
+      }
 
-                "confirmed",
+      bookings[index].status =
+        status;
 
-                "completed",
+      bookings[index].updatedAt =
+        new Date().toISOString();
 
-                "cancelled"
+      writeJSON(
+        BOOKINGS_FILE,
+        bookings
+      );
 
-            ];
+      res.json({
+        success: true,
+        booking:
+          bookings[index],
+      });
+    } catch (error) {
+      console.error(error);
 
-
-            if (
-                !allowed.includes(
-                    status
-                )
-            )
-                return res
-                    .status(400)
-                    .json({
-                        message:
-                            "Invalid booking status."
-                    });
-
-
-            await db
-                .collection("bookings")
-                .doc(
-                    req.params.id
-                )
-                .update({
-
-                    status
-
-                });
-
-
-            res.json({
-
-                success:
-                    true
-
-            });
-
-
-        } catch (error) {
-
-            console.error(error);
-
-
-            res
-                .status(500)
-                .json({
-                    message:
-                        "Could not update status."
-                });
-
-        }
-
+      res.status(500).json({
+        error:
+          "Unable to update booking.",
+      });
     }
+  }
 );
-
 
 /* =====================================================
    BLOCK SLOT
 ===================================================== */
 
 app.post(
-    "/api/admin/block",
-    authenticateAdmin,
-    async (req,res) => {
+  "/api/admin/block-slot",
+  checkAdmin,
+  (req, res) => {
+    try {
+      const {
+        date,
+        time,
+        reason,
+      } = req.body;
 
-        try {
+      if (!date || !time) {
+        return res.status(400).json({
+          error:
+            "Date and time required.",
+        });
+      }
 
-            const {
-                date,
-                time,
-                reason
-            } = req.body;
+      const bookings =
+        readJSON(BOOKINGS_FILE);
 
+      const blocked =
+        readJSON(BLOCKED_FILE);
 
-            const bookingSnapshot =
-                await db
-                    .collection("bookings")
-                    .where(
-                        "date",
-                        "==",
-                        date
-                    )
-                    .get();
+      const alreadyBooked =
+        bookings.some(
+          (booking) =>
+            booking.date === date &&
+            booking.time === time &&
+            booking.status !==
+              "cancelled"
+        );
 
+      if (alreadyBooked) {
+        return res.status(409).json({
+          error:
+            "This slot already has a booking.",
+        });
+      }
 
-            const conflictingBooking =
-                bookingSnapshot.docs.some(
-                    doc => {
+      const alreadyBlocked =
+        blocked.some(
+          (slot) =>
+            slot.date === date &&
+            slot.time === time
+        );
 
-                        const booking =
-                            doc.data();
+      if (alreadyBlocked) {
+        return res.status(409).json({
+          error:
+            "This slot is already blocked.",
+        });
+      }
 
+      const slot = {
+        id: slotId(date, time),
 
-                        return (
-                            booking.time === time &&
-                            booking.status !==
-                                "cancelled"
-                        );
+        date,
+        time,
 
-                    }
-                );
+        reason:
+          reason ||
+          "Blocked by admin",
 
+        createdAt:
+          new Date().toISOString(),
+      };
 
-            if (
-                conflictingBooking
-            ) {
+      blocked.push(slot);
 
-                return res
-                    .status(409)
-                    .json({
-                        message:
-                            "A booking already exists for this slot."
-                    });
+      writeJSON(
+        BLOCKED_FILE,
+        blocked
+      );
 
-            }
+      res.json({
+        success: true,
+        slot,
+      });
+    } catch (error) {
+      console.error(error);
 
-
-            await db
-                .collection("blockedSlots")
-                .add({
-
-                    date,
-
-                    time,
-
-                    reason:
-                        reason ||
-                        "Blocked by CRZ admin",
-
-                    createdAt:
-                        admin.firestore
-                            .FieldValue
-                            .serverTimestamp()
-
-                });
-
-
-            res.json({
-
-                success:
-                    true
-
-            });
-
-
-        } catch (error) {
-
-            console.error(error);
-
-
-            res
-                .status(500)
-                .json({
-                    message:
-                        "Could not block slot."
-                });
-
-        }
-
+      res.status(500).json({
+        error:
+          "Unable to block slot.",
+      });
     }
+  }
 );
 
+/* =====================================================
+   UNBLOCK SLOT
+===================================================== */
+
+app.post(
+  "/api/admin/unblock-slot",
+  checkAdmin,
+  (req, res) => {
+    try {
+      const { id } =
+        req.body;
+
+      if (!id) {
+        return res.status(400).json({
+          error:
+            "Slot ID required.",
+        });
+      }
+
+      const blocked =
+        readJSON(BLOCKED_FILE);
+
+      const filtered =
+        blocked.filter(
+          (slot) =>
+            slot.id !== id
+        );
+
+      if (
+        filtered.length ===
+        blocked.length
+      ) {
+        return res.status(404).json({
+          error:
+            "Blocked slot not found.",
+        });
+      }
+
+      writeJSON(
+        BLOCKED_FILE,
+        filtered
+      );
+
+      res.json({
+        success: true,
+      });
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error:
+          "Unable to unblock slot.",
+      });
+    }
+  }
+);
+
+/* =====================================================
+   TEST ADMIN AUTH
+===================================================== */
+
+app.get(
+  "/api/admin/check",
+  checkAdmin,
+  (req, res) => {
+    res.json({
+      success: true,
+      message:
+        "Admin authentication working.",
+    });
+  }
+);
+
+/* =====================================================
+   HEALTH
+===================================================== */
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "online",
+    message:
+      "CRZ backend is working 🚀",
+    paymentSystem: false,
+    firebase: false,
+  });
+});
+
+/* =====================================================
+   404
+===================================================== */
+
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Route not found.",
+  });
+});
 
 /* =====================================================
    START
 ===================================================== */
 
-const PORT =
-    process.env.PORT || 3000;
-
-
-app.listen(
-    PORT,
-    () => {
-
-        console.log(
-            `CRZ backend running on port ${PORT}`
-        );
-
-    }
-);
+app.listen(PORT, () => {
+  console.log(
+    `CRZ backend running on http://localhost:${PORT}`
+  );
+});
