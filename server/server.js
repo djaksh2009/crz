@@ -12,963 +12,1227 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT || 5000);
 
-/* =====================================================
-   MIDDLEWARE
-===================================================== */
+app.use(cors());
+app.use(express.json({ limit: "100kb" }));
 
-app.use(
-  cors({
-    origin: true,
-    methods: [
-      "GET",
-      "POST",
-      "PATCH",
-      "DELETE",
-      "OPTIONS"
-    ],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization"
-    ]
-  })
-);
+// ============================================================
+// FILE STORAGE
+// ============================================================
 
-app.use(express.json());
+const DATA_DIR = path.join(__dirname, "data");
+const BOOKINGS_FILE = path.join(DATA_DIR, "bookings.json");
+const BLOCKED_FILE = path.join(DATA_DIR, "blocked.json");
 
-/* =====================================================
-   DATA
-===================================================== */
+fs.mkdirSync(DATA_DIR, { recursive: true });
 
-const DATA_DIR = path.join(
-  __dirname,
-  "data"
-);
-
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, {
-    recursive: true
-  });
+function ensureJson(file) {
+    if (!fs.existsSync(file)) {
+        fs.writeFileSync(file, "[]\n", "utf8");
+    }
 }
 
-const BOOKINGS_FILE = path.join(
-  DATA_DIR,
-  "bookings.json"
-);
+ensureJson(BOOKINGS_FILE);
+ensureJson(BLOCKED_FILE);
 
-const BLOCKED_FILE = path.join(
-  DATA_DIR,
-  "blocked.json"
-);
+function readJson(file) {
+    try {
+        const data = JSON.parse(
+            fs.readFileSync(file, "utf8")
+        );
 
-function ensureFile(file) {
-  if (!fs.existsSync(file)) {
+        return Array.isArray(data) ? data : [];
+    } catch {
+        return [];
+    }
+}
+
+function writeJson(file, data) {
+    const temp = `${file}.${process.pid}.tmp`;
+
     fs.writeFileSync(
-      file,
-      "[]",
-      "utf8"
-    );
-  }
-}
-
-ensureFile(BOOKINGS_FILE);
-ensureFile(BLOCKED_FILE);
-
-function readJSON(file) {
-  try {
-    return JSON.parse(
-      fs.readFileSync(
-        file,
+        temp,
+        JSON.stringify(data, null, 2) + "\n",
         "utf8"
-      )
     );
-  } catch {
-    return [];
-  }
+
+    fs.renameSync(temp, file);
 }
 
-function writeJSON(file, data) {
-  fs.writeFileSync(
-    file,
-    JSON.stringify(
-      data,
-      null,
-      2
-    ),
-    "utf8"
-  );
+// ============================================================
+// HELPERS
+// ============================================================
+
+function generateId() {
+    return `CRZ-${Date.now()
+        .toString(36)
+        .toUpperCase()}-${crypto
+        .randomBytes(3)
+        .toString("hex")
+        .toUpperCase()}`;
 }
 
-/* =====================================================
-   HELPERS
-===================================================== */
-
-function generateId(prefix) {
-  return (
-    `${prefix}_` +
-    `${Date.now()}_` +
-    crypto
-      .randomBytes(4)
-      .toString("hex")
-  );
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
 
-function slotId(date, time) {
-  return `${date}_${time}`.replace(
-    /[^a-zA-Z0-9_-]/g,
-    "_"
-  );
+function validEmail(value) {
+    return (
+        typeof value === "string" &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+    );
 }
 
-function getAdminToken(req) {
-  const auth =
-    req.headers.authorization || "";
-
-  if (!auth.startsWith("Bearer ")) {
-    return null;
-  }
-
-  return auth.slice(7);
+function validPhone(value) {
+    return (
+        typeof value === "string" &&
+        /^[+\d][\d\s().-]{7,19}$/.test(value)
+    );
 }
 
-function checkAdmin(req, res, next) {
-  const token =
-    getAdminToken(req);
-
-  if (
-    !token ||
-    token !==
-      process.env.ADMIN_TOKEN
-  ) {
-    return res.status(401).json({
-      error: "Unauthorized."
-    });
-  }
-
-  next();
+function validDate(value) {
+    return (
+        typeof value === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+        !Number.isNaN(
+            Date.parse(`${value}T00:00:00Z`)
+        )
+    );
 }
 
-/* =====================================================
-   HEALTH
-===================================================== */
+function today() {
+    return new Date()
+        .toISOString()
+        .slice(0, 10);
+}
 
-app.get("/", (req, res) => {
-  res.json({
-    status: "online",
-    message:
-      "CRZ backend is working 🚀",
-    firebase: false,
-    razorpay: false,
-    payments: false
-  });
-});
-
-/* =====================================================
-   SERVICES
-===================================================== */
+// ============================================================
+// SERVICES
+// ============================================================
 
 const SERVICES = {
-  "250": {
-    id: 250,
-    name: "Practice",
-    price: 250
-  },
+    "250": {
+        id: "250",
+        name: "Practice",
+        price: 250
+    },
 
-  "400": {
-    id: 400,
-    name: "Practice + Audio",
-    price: 400
-  },
+    "400": {
+        id: "400",
+        name: "Practice + Audio",
+        price: 400
+    },
 
-  "500": {
-    id: 500,
-    name:
-      "Practice + Audio + Video",
-    price: 500
-  },
+    "500": {
+        id: "500",
+        name: "Practice + Audio + Video",
+        price: 500
+    },
 
-  "1500": {
-    id: 1500,
-    name: "Edited Recording",
-    price: 1500
-  }
+    "1500": {
+        id: "1500",
+        name: "Edited Recording",
+        price: 1500
+    }
 };
 
-app.get(
-  "/api/services",
-  (req, res) => {
-    res.json({
-      services:
-        Object.values(SERVICES)
-    });
-  }
-);
+// ============================================================
+// TIME SLOTS
+// ============================================================
 
-/* =====================================================
-   AVAILABILITY
-===================================================== */
+const TIME_SLOTS = [
+    "09:00 AM – 10:00 AM",
+    "10:00 AM – 11:00 AM",
+    "11:00 AM – 12:00 PM",
+    "12:00 PM – 01:00 PM",
+    "01:00 PM – 02:00 PM",
+    "02:00 PM – 03:00 PM",
+    "03:00 PM – 04:00 PM",
+    "04:00 PM – 05:00 PM",
+    "05:00 PM – 06:00 PM",
+    "06:00 PM – 07:00 PM",
+    "07:00 PM – 08:00 PM"
+];
 
-function buildAvailability(date) {
-  const bookings =
-    readJSON(BOOKINGS_FILE);
+// ============================================================
+// DATA
+// ============================================================
 
-  const blocked =
-    readJSON(BLOCKED_FILE);
-
-  const bookedSlots =
-    bookings
-      .filter(
-        booking =>
-          booking.date === date &&
-          booking.status !==
-            "cancelled"
-      )
-      .map(booking => ({
-        time: booking.time,
-        bookingId: booking.id
-      }));
-
-  const blockedSlots =
-    blocked
-      .filter(
-        slot =>
-          slot.date === date
-      )
-      .map(slot => ({
-        id: slot.id,
-        time: slot.time,
-        reason: slot.reason
-      }));
-
-  return {
-    date,
-
-    bookedSlots,
-    blockedSlots,
-
-    // Compatibility
-    bookings: bookedSlots,
-    blocked: blockedSlots
-  };
+function getBookings() {
+    return readJson(BOOKINGS_FILE);
 }
 
-/* GET availability */
+function getBlocked() {
+    return readJson(BLOCKED_FILE);
+}
 
-app.get(
-  "/api/availability",
-  (req, res) => {
-    try {
-      const { date } =
-        req.query;
+function slotTaken(date, time) {
+    const bookings = getBookings();
+    const blocked = getBlocked();
 
-      if (!date) {
-        return res.status(400).json({
-          error:
-            "Date is required."
-        });
-      }
+    const bookingExists = bookings.some(
+        booking =>
+            booking.date === date &&
+            booking.time === time &&
+            booking.status !== "cancelled"
+    );
 
-      res.json(
-        buildAvailability(date)
-      );
-    } catch (error) {
-      console.error(error);
-
-      res.status(500).json({
-        error:
-          "Unable to load availability."
-      });
-    }
-  }
-);
-
-/* POST availability */
-
-app.post(
-  "/api/availability",
-  (req, res) => {
-    try {
-      const { date } =
-        req.body;
-
-      if (!date) {
-        return res.status(400).json({
-          error:
-            "Date is required."
-        });
-      }
-
-      res.json(
-        buildAvailability(date)
-      );
-    } catch (error) {
-      console.error(error);
-
-      res.status(500).json({
-        error:
-          "Unable to load availability."
-      });
-    }
-  }
-);
-
-/* =====================================================
-   CREATE BOOKING
-===================================================== */
-
-app.post(
-  "/api/bookings",
-  (req, res) => {
-    try {
-      const {
-        name,
-        email,
-        phone,
-        date,
-        time,
-        service,
-        serviceId,
-        serviceName,
-        notes
-      } = req.body;
-
-      if (
-        !name ||
-        !email ||
-        !phone ||
-        !date ||
-        !time
-      ) {
-        return res.status(400).json({
-          error:
-            "Name, email, phone, date and time are required."
-        });
-      }
-
-      const selectedService =
-        String(
-          serviceId ||
-          service ||
-          "250"
-        );
-
-      const serviceInfo =
-        SERVICES[
-          selectedService
-        ];
-
-      if (!serviceInfo) {
-        return res.status(400).json({
-          error:
-            "Invalid service."
-        });
-      }
-
-      const bookings =
-        readJSON(
-          BOOKINGS_FILE
-        );
-
-      const blocked =
-        readJSON(
-          BLOCKED_FILE
-        );
-
-      /* duplicate booking */
-
-      const alreadyBooked =
-        bookings.some(
-          booking =>
-            booking.date ===
-              date &&
-            booking.time ===
-              time &&
-            booking.status !==
-              "cancelled"
-        );
-
-      if (alreadyBooked) {
-        return res.status(409).json({
-          error:
-            "That time slot is already booked."
-        });
-      }
-
-      /* blocked slot */
-
-      const isBlocked =
-        blocked.some(
-          slot =>
+    const blockedExists = blocked.some(
+        slot =>
             slot.date === date &&
             slot.time === time
+    );
+
+    return bookingExists || blockedExists;
+}
+
+// ============================================================
+// BOOKING SANITIZATION
+// ============================================================
+
+function publicBooking(booking) {
+    return {
+        id: booking.id,
+        bookingId: booking.id,
+
+        name: booking.name,
+        customerName: booking.name,
+
+        email: booking.email,
+        phone: booking.phone,
+
+        date: booking.date,
+        time: booking.time,
+
+        service: booking.service,
+        serviceName: booking.serviceName,
+
+        total: booking.total,
+
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+
+        utr: booking.utr || null,
+
+        createdAt: booking.createdAt,
+        paidAt: booking.paidAt || null,
+        confirmedAt: booking.confirmedAt || null
+    };
+}
+
+// ============================================================
+// RESEND
+// ============================================================
+
+async function sendEmail({
+    to,
+    subject,
+    html
+}) {
+    if (
+        !process.env.RESEND_API_KEY ||
+        !process.env.RESEND_FROM_EMAIL
+    ) {
+        console.log(
+            "Resend is not configured. Email skipped."
         );
 
-      if (isBlocked) {
-        return res.status(409).json({
-          error:
-            "That time slot is blocked."
-        });
-      }
-
-      const booking = {
-        id: generateId(
-          "booking"
-        ),
-
-        name:
-          String(name).trim(),
-
-        email:
-          String(email).trim(),
-
-        phone:
-          String(phone).trim(),
-
-        date,
-        time,
-
-        service:
-          serviceInfo.id,
-
-        serviceName:
-          serviceName ||
-          serviceInfo.name,
-
-        total:
-          serviceInfo.price,
-
-        notes:
-          notes
-            ? String(notes).trim()
-            : "",
-
-        status:
-          "confirmed",
-
-        createdAt:
-          new Date().toISOString()
-      };
-
-      bookings.push(
-        booking
-      );
-
-      writeJSON(
-        BOOKINGS_FILE,
-        bookings
-      );
-
-      res.status(201).json({
-        success: true,
-        bookingId:
-          booking.id,
-        booking
-      });
-    } catch (error) {
-      console.error(error);
-
-      res.status(500).json({
-        error:
-          "Unable to create booking."
-      });
+        return;
     }
-  }
-);
 
-/* =====================================================
-   GET BOOKING
-===================================================== */
+    const response = await fetch(
+        "https://api.resend.com/emails",
+        {
+            method: "POST",
 
-app.get(
-  "/api/bookings/:id",
-  (req, res) => {
+            headers: {
+                Authorization:
+                    `Bearer ${process.env.RESEND_API_KEY}`,
+
+                "Content-Type":
+                    "application/json"
+            },
+
+            body: JSON.stringify({
+                from:
+                    process.env.RESEND_FROM_EMAIL,
+
+                to: [to],
+
+                subject,
+
+                html
+            })
+        }
+    );
+
+    if (!response.ok) {
+        const text = await response.text();
+
+        throw new Error(
+            `Resend failed: ${response.status} ${text}`
+        );
+    }
+}
+
+// ============================================================
+// PAYMENT SUBMITTED EMAIL
+// ============================================================
+
+async function sendPaymentSubmittedEmail(
+    booking
+) {
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+
+<body style="
+margin:0;
+background:#080808;
+color:#f5f5f5;
+font-family:Arial,sans-serif;
+">
+
+<div style="
+max-width:620px;
+margin:auto;
+padding:40px 20px;
+">
+
+<div style="
+font-size:28px;
+font-weight:900;
+letter-spacing:3px;
+">
+CRZ <span style="color:#1846ff">//</span> DJ STUDIO
+</div>
+
+<div style="
+margin-top:30px;
+background:#111;
+border:1px solid #292929;
+padding:30px;
+">
+
+<div style="
+font-size:11px;
+letter-spacing:2px;
+color:#777;
+">
+PAYMENT SUBMITTED
+</div>
+
+<h1>
+Thanks, ${escapeHtml(booking.name)}.
+</h1>
+
+<p>
+We've received your payment details.
+Your booking is now awaiting verification.
+</p>
+
+<p>
+<strong>Booking ID:</strong>
+${escapeHtml(booking.id)}
+<br>
+
+<strong>Service:</strong>
+${escapeHtml(booking.serviceName)}
+<br>
+
+<strong>Date:</strong>
+${escapeHtml(booking.date)}
+<br>
+
+<strong>Time:</strong>
+${escapeHtml(booking.time)}
+<br>
+
+<strong>Amount:</strong>
+₹${booking.total.toLocaleString("en-IN")}
+<br>
+
+<strong>UTR:</strong>
+${escapeHtml(booking.utr)}
+</p>
+
+<p style="color:#999">
+Your booking will be confirmed after CRZ verifies
+the payment.
+</p>
+
+</div>
+
+</div>
+
+</body>
+</html>
+`;
+
     try {
-      const bookings =
-        readJSON(
-          BOOKINGS_FILE
-        );
-
-      const booking =
-        bookings.find(
-          item =>
-            item.id ===
-            req.params.id
-        );
-
-      if (!booking) {
-        return res.status(404).json({
-          error:
-            "Booking not found."
+        await sendEmail({
+            to: booking.email,
+            subject:
+                `CRZ — Payment Submitted (${booking.id})`,
+            html
         });
-      }
-
-      res.json({
-        success: true,
-        booking
-      });
     } catch (error) {
-      console.error(error);
-
-      res.status(500).json({
-        error:
-          "Unable to find booking."
-      });
+        console.error(
+            "Payment email failed:",
+            error.message
+        );
     }
-  }
-);
+}
 
-/* =====================================================
-   CANCEL BOOKING
-===================================================== */
+// ============================================================
+// CONFIRMATION EMAIL
+// ============================================================
 
-app.post(
-  "/api/bookings/:id/cancel",
-  (req, res) => {
+async function sendConfirmationEmail(
+    booking
+) {
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+
+<body style="
+margin:0;
+background:#080808;
+color:#f5f5f5;
+font-family:Arial,sans-serif;
+">
+
+<div style="
+max-width:620px;
+margin:auto;
+padding:40px 20px;
+">
+
+<div style="
+font-size:28px;
+font-weight:900;
+letter-spacing:3px;
+">
+CRZ <span style="color:#1846ff">//</span> DJ STUDIO
+</div>
+
+<div style="
+margin-top:30px;
+background:#111;
+border:1px solid #292929;
+padding:30px;
+">
+
+<div style="
+font-size:11px;
+letter-spacing:2px;
+color:#1846ff;
+">
+BOOKING CONFIRMED
+</div>
+
+<h1>
+You're booked, ${escapeHtml(booking.name)}.
+</h1>
+
+<p>
+Your CRZ session has been confirmed.
+</p>
+
+<p>
+<strong>Booking ID:</strong>
+${escapeHtml(booking.id)}
+<br>
+
+<strong>Service:</strong>
+${escapeHtml(booking.serviceName)}
+<br>
+
+<strong>Date:</strong>
+${escapeHtml(booking.date)}
+<br>
+
+<strong>Time:</strong>
+${escapeHtml(booking.time)}
+<br>
+
+<strong>Amount:</strong>
+₹${booking.total.toLocaleString("en-IN")}
+<br>
+
+<strong>Payment:</strong>
+PAID
+</p>
+
+<p style="color:#999">
+Please keep your booking ID for reference.
+</p>
+
+</div>
+
+</div>
+
+</body>
+</html>
+`;
+
     try {
-      const bookings =
-        readJSON(
-          BOOKINGS_FILE
-        );
-
-      const index =
-        bookings.findIndex(
-          booking =>
-            booking.id ===
-            req.params.id
-        );
-
-      if (index === -1) {
-        return res.status(404).json({
-          error:
-            "Booking not found."
+        await sendEmail({
+            to: booking.email,
+            subject:
+                `CRZ — Booking Confirmed (${booking.id})`,
+            html
         });
-      }
-
-      bookings[index].status =
-        "cancelled";
-
-      bookings[index]
-        .cancelledAt =
-        new Date().toISOString();
-
-      writeJSON(
-        BOOKINGS_FILE,
-        bookings
-      );
-
-      res.json({
-        success: true,
-        booking:
-          bookings[index]
-      });
     } catch (error) {
-      console.error(error);
-
-      res.status(500).json({
-        error:
-          "Unable to cancel booking."
-      });
+        console.error(
+            "Confirmation email failed:",
+            error.message
+        );
     }
-  }
-);
+}
 
-/* =====================================================
-   ADMIN LOGIN
-===================================================== */
+// ============================================================
+// ADMIN AUTH
+// ============================================================
 
-app.post(
-  "/api/admin/login",
-  (req, res) => {
-    const {
-      email,
-      password
-    } = req.body;
+function requireAdmin(req, res, next) {
+    const header =
+        req.headers.authorization || "";
+
+    const token =
+        header.startsWith("Bearer ")
+            ? header.slice(7)
+            : "";
+
+    const expected =
+        process.env.ADMIN_TOKEN || "";
 
     if (
-      email !==
-        process.env.ADMIN_EMAIL ||
-      password !==
-        process.env.ADMIN_PASSWORD
+        !token ||
+        !expected ||
+        token !== expected
     ) {
-      return res.status(401).json({
-        error:
-          "Invalid email or password."
-      });
+        return res.status(401).json({
+            error: "Unauthorized"
+        });
     }
 
-    res.json({
-      success: true,
-      token:
-        process.env.ADMIN_TOKEN
-    });
-  }
-);
+    next();
+}
 
-/* =====================================================
-   ADMIN CHECK
-===================================================== */
+// ============================================================
+// BASIC ROUTES
+// ============================================================
+
+app.get("/", (req, res) => {
+    res.json({
+        status: "online",
+        service: "CRZ Backend"
+    });
+});
+
+app.get("/api/health", (req, res) => {
+    res.json({
+        success: true,
+        status: "online"
+    });
+});
+
+app.get("/api/services", (req, res) => {
+    res.json({
+        services:
+            Object.values(SERVICES)
+    });
+});
+
+// ============================================================
+// AVAILABILITY
+// ============================================================
+
+function availability(req, res) {
+    const date =
+        req.method === "GET"
+            ? req.query.date
+            : req.body?.date;
+
+    if (!validDate(date)) {
+        return res.status(400).json({
+            error:
+                "A valid date is required."
+        });
+    }
+
+    const bookings =
+        getBookings().filter(
+            booking =>
+                booking.date === date &&
+                booking.status !== "cancelled"
+        );
+
+    const blocked =
+        getBlocked().filter(
+            slot => slot.date === date
+        );
+
+    const bookedSlots =
+        bookings.map(
+            booking => booking.time
+        );
+
+    const blockedSlots =
+        blocked.map(
+            slot => slot.time
+        );
+
+    const availableSlots =
+        TIME_SLOTS.filter(
+            time =>
+                !bookedSlots.includes(time) &&
+                !blockedSlots.includes(time)
+        );
+
+    res.json({
+        date,
+
+        slots: TIME_SLOTS,
+
+        availableSlots,
+
+        bookedSlots,
+
+        blockedSlots
+    });
+}
 
 app.get(
-  "/api/admin/check",
-  checkAdmin,
-  (req, res) => {
-    res.json({
-      success: true
-    });
-  }
+    "/api/availability",
+    availability
 );
 
-/* =====================================================
-   ADMIN DASHBOARD
-===================================================== */
+app.post(
+    "/api/availability",
+    availability
+);
 
-app.get(
-  "/api/admin/dashboard",
-  checkAdmin,
-  (req, res) => {
-    try {
-      const bookings =
-        readJSON(
-          BOOKINGS_FILE
-        );
+// ============================================================
+// CREATE BOOKING
+// ============================================================
 
-      const blockedSlots =
-        readJSON(
-          BLOCKED_FILE
-        );
+app.post(
+    "/api/bookings",
+    (req, res) => {
 
-      const today =
-        new Date()
-          .toISOString()
-          .slice(0, 10);
+        const {
+            name,
+            email,
+            phone,
+            date,
+            time,
+            service
+        } = req.body || {};
 
-      const confirmed =
-        bookings.filter(
-          booking =>
-            booking.status ===
-            "confirmed"
-        );
-
-      const todayCount =
-        confirmed.filter(
-          booking =>
-            booking.date ===
-            today
-        ).length;
-
-      const futureCount =
-        confirmed.filter(
-          booking =>
-            booking.date >
-            today
-        ).length;
-
-      const completedCount =
-        confirmed.filter(
-          booking =>
-            booking.date <
-            today
-        ).length;
-
-      const revenue =
-        confirmed.reduce(
-          (sum, booking) =>
-            sum +
-            Number(
-              booking.total || 0
-            ),
-          0
-        );
-
-      res.json({
-        bookings:
-          [...bookings].reverse(),
-
-        blockedSlots,
-
-        stats: {
-          today:
-            todayCount,
-
-          future:
-            futureCount,
-
-          completed:
-            completedCount,
-
-          revenue
+        if (
+            !name ||
+            name.trim().length < 2 ||
+            !validEmail(email) ||
+            !validPhone(phone) ||
+            !validDate(date) ||
+            !TIME_SLOTS.includes(time) ||
+            !SERVICES[String(service)]
+        ) {
+            return res.status(400).json({
+                error:
+                    "Please complete all booking details."
+            });
         }
-      });
-    } catch (error) {
-      console.error(error);
 
-      res.status(500).json({
-        error:
-          "Dashboard failed."
-      });
+        if (date < today()) {
+            return res.status(400).json({
+                error:
+                    "Booking date cannot be in the past."
+            });
+        }
+
+        if (slotTaken(date, time)) {
+            return res.status(409).json({
+                error:
+                    "This time slot is no longer available. Please choose another time."
+            });
+        }
+
+        const serviceData =
+            SERVICES[String(service)];
+
+        const booking = {
+            id: generateId(),
+
+            name:
+                name.trim(),
+
+            email:
+                email.trim().toLowerCase(),
+
+            phone:
+                phone.trim(),
+
+            date,
+
+            time,
+
+            service:
+                serviceData.id,
+
+            serviceName:
+                serviceData.name,
+
+            total:
+                serviceData.price,
+
+            status:
+                "pending_payment",
+
+            paymentStatus:
+                "pending",
+
+            utr:
+                null,
+
+            createdAt:
+                new Date().toISOString(),
+
+            paidAt:
+                null,
+
+            confirmedAt:
+                null
+        };
+
+        const bookings =
+            getBookings();
+
+        bookings.unshift(booking);
+
+        writeJson(
+            BOOKINGS_FILE,
+            bookings
+        );
+
+        res.status(201).json({
+            success: true,
+
+            booking:
+                publicBooking(booking)
+        });
     }
-  }
 );
 
-/* =====================================================
-   ADMIN UPDATE BOOKING
-===================================================== */
+// ============================================================
+// GET BOOKING
+// ============================================================
+
+app.get(
+    "/api/bookings/:id",
+    (req, res) => {
+
+        const bookings =
+            getBookings();
+
+        const booking =
+            bookings.find(
+                item =>
+                    item.id ===
+                    req.params.id
+            );
+
+        if (!booking) {
+            return res.status(404).json({
+                error:
+                    "Booking not found."
+            });
+        }
+
+        res.json({
+            success: true,
+
+            booking:
+                publicBooking(booking)
+        });
+    }
+);
+
+// ============================================================
+// SUBMIT QR PAYMENT
+// ============================================================
+
+app.post(
+    "/api/payments/submit",
+    async (req, res) => {
+
+        const {
+            bookingId,
+            utr
+        } = req.body || {};
+
+        if (!bookingId) {
+            return res.status(400).json({
+                error:
+                    "Booking ID is required."
+            });
+        }
+
+        if (
+            !utr ||
+            String(utr).trim().length < 4
+        ) {
+            return res.status(400).json({
+                error:
+                    "Please enter your UPI transaction ID / UTR."
+            });
+        }
+
+        const bookings =
+            getBookings();
+
+        const booking =
+            bookings.find(
+                item =>
+                    item.id === bookingId
+            );
+
+        if (!booking) {
+            return res.status(404).json({
+                error:
+                    "Booking not found."
+            });
+        }
+
+        if (
+            booking.status ===
+            "cancelled"
+        ) {
+            return res.status(400).json({
+                error:
+                    "This booking has been cancelled."
+            });
+        }
+
+        booking.utr =
+            String(utr).trim();
+
+        booking.paymentStatus =
+            "submitted";
+
+        booking.status =
+            "pending_payment";
+
+        writeJson(
+            BOOKINGS_FILE,
+            bookings
+        );
+
+        await sendPaymentSubmittedEmail(
+            booking
+        );
+
+        res.json({
+            success: true,
+
+            booking:
+                publicBooking(booking)
+        });
+    }
+);
+
+// ============================================================
+// ADMIN LOGIN
+// ============================================================
+
+app.post(
+    "/api/admin/login",
+    (req, res) => {
+
+        const {
+            email,
+            password
+        } = req.body || {};
+
+        if (
+            !email ||
+            !password
+        ) {
+            return res.status(400).json({
+                error:
+                    "Email and password are required."
+            });
+        }
+
+        if (
+            email !==
+                process.env.ADMIN_EMAIL ||
+            password !==
+                process.env.ADMIN_PASSWORD
+        ) {
+            return res.status(401).json({
+                error:
+                    "Invalid admin credentials."
+            });
+        }
+
+        res.json({
+            success: true,
+
+            token:
+                process.env.ADMIN_TOKEN
+        });
+    }
+);
+
+// ============================================================
+// ADMIN DASHBOARD
+// ============================================================
+
+app.get(
+    "/api/admin/dashboard",
+    requireAdmin,
+    (req, res) => {
+
+        const bookings =
+            getBookings();
+
+        const blocked =
+            getBlocked();
+
+        const paid =
+            bookings.filter(
+                booking =>
+                    booking.paymentStatus ===
+                    "paid"
+            );
+
+        const revenue =
+            paid.reduce(
+                (sum, booking) =>
+                    sum +
+                    Number(booking.total || 0),
+                0
+            );
+
+        const todayBookings =
+            bookings.filter(
+                booking =>
+                    booking.date === today()
+            );
+
+        res.json({
+
+            todayCount:
+                todayBookings.length,
+
+            totalBookings:
+                bookings.length,
+
+            revenue,
+
+            bookings:
+                bookings.map(publicBooking),
+
+            blocked
+        });
+    }
+);
+
+// ============================================================
+// ADMIN: MARK PAYMENT PAID
+// ============================================================
 
 app.patch(
-  "/api/admin/bookings/:id",
-  checkAdmin,
-  (req, res) => {
-    try {
-      const {
-        status
-      } = req.body;
+    "/api/admin/bookings/:id",
+    requireAdmin,
+    async (req, res) => {
 
-      const allowed = [
-        "confirmed",
-        "cancelled",
-        "completed"
-      ];
+        const bookings =
+            getBookings();
 
-      if (
-        !allowed.includes(status)
-      ) {
-        return res.status(400).json({
-          error:
-            "Invalid booking status."
-        });
-      }
+        const booking =
+            bookings.find(
+                item =>
+                    item.id ===
+                    req.params.id
+            );
 
-      const bookings =
-        readJSON(
-          BOOKINGS_FILE
+        if (!booking) {
+            return res.status(404).json({
+                error:
+                    "Booking not found."
+            });
+        }
+
+        const oldPaymentStatus =
+            booking.paymentStatus;
+
+        if (
+            req.body.paymentStatus
+        ) {
+            const allowed = [
+                "pending",
+                "submitted",
+                "paid",
+                "failed"
+            ];
+
+            if (
+                !allowed.includes(
+                    req.body.paymentStatus
+                )
+            ) {
+                return res.status(400).json({
+                    error:
+                        "Invalid payment status."
+                });
+            }
+
+            booking.paymentStatus =
+                req.body.paymentStatus;
+        }
+
+        if (req.body.status) {
+
+            const allowed = [
+                "pending_payment",
+                "confirmed",
+                "cancelled",
+                "completed"
+            ];
+
+            if (
+                !allowed.includes(
+                    req.body.status
+                )
+            ) {
+                return res.status(400).json({
+                    error:
+                        "Invalid booking status."
+                });
+            }
+
+            booking.status =
+                req.body.status;
+        }
+
+        // Marking payment paid automatically
+        // confirms the booking.
+
+        if (
+            booking.paymentStatus ===
+            "paid"
+        ) {
+
+            booking.status =
+                "confirmed";
+
+            if (!booking.paidAt) {
+                booking.paidAt =
+                    new Date().toISOString();
+            }
+
+            if (!booking.confirmedAt) {
+                booking.confirmedAt =
+                    new Date().toISOString();
+            }
+        }
+
+        writeJson(
+            BOOKINGS_FILE,
+            bookings
         );
 
-      const index =
-        bookings.findIndex(
-          booking =>
-            booking.id ===
-            req.params.id
-        );
+        if (
+            oldPaymentStatus !== "paid" &&
+            booking.paymentStatus === "paid"
+        ) {
+            await sendConfirmationEmail(
+                booking
+            );
+        }
 
-      if (index === -1) {
-        return res.status(404).json({
-          error:
-            "Booking not found."
+        res.json({
+            success: true,
+
+            booking:
+                publicBooking(booking)
         });
-      }
-
-      bookings[index].status =
-        status;
-
-      bookings[index].updatedAt =
-        new Date().toISOString();
-
-      writeJSON(
-        BOOKINGS_FILE,
-        bookings
-      );
-
-      res.json({
-        success: true,
-        booking:
-          bookings[index]
-      });
-    } catch (error) {
-      console.error(error);
-
-      res.status(500).json({
-        error:
-          "Unable to update booking."
-      });
     }
-  }
 );
 
-/* =====================================================
-   ADMIN BLOCK SLOT
-===================================================== */
+// ============================================================
+// ADMIN: BLOCK SLOT
+// ============================================================
 
 app.post(
-  "/api/admin/block-slot",
-  checkAdmin,
-  (req, res) => {
-    try {
-      const {
-        date,
-        time,
-        reason
-      } = req.body;
+    "/api/admin/block-slot",
+    requireAdmin,
+    (req, res) => {
 
-      if (!date || !time) {
-        return res.status(400).json({
-          error:
-            "Date and time required."
+        const {
+            date,
+            time
+        } = req.body || {};
+
+        if (
+            !validDate(date) ||
+            !TIME_SLOTS.includes(time)
+        ) {
+            return res.status(400).json({
+                error:
+                    "Invalid date or time."
+            });
+        }
+
+        if (
+            slotTaken(date, time)
+        ) {
+
+            const bookings =
+                getBookings();
+
+            const bookingExists =
+                bookings.some(
+                    booking =>
+                        booking.date === date &&
+                        booking.time === time &&
+                        booking.status !==
+                            "cancelled"
+                );
+
+            if (bookingExists) {
+                return res.status(409).json({
+                    error:
+                        "This slot already has a booking."
+                });
+            }
+        }
+
+        const blocked =
+            getBlocked();
+
+        const exists =
+            blocked.some(
+                item =>
+                    item.date === date &&
+                    item.time === time
+            );
+
+        if (exists) {
+            return res.status(409).json({
+                error:
+                    "This slot is already blocked."
+            });
+        }
+
+        blocked.push({
+            id: generateId("BLK"),
+
+            date,
+
+            time,
+
+            createdAt:
+                new Date().toISOString()
         });
-      }
 
-      const bookings =
-        readJSON(
-          BOOKINGS_FILE
+        writeJson(
+            BLOCKED_FILE,
+            blocked
         );
 
-      const blocked =
-        readJSON(
-          BLOCKED_FILE
-        );
-
-      const alreadyBooked =
-        bookings.some(
-          booking =>
-            booking.date ===
-              date &&
-            booking.time ===
-              time &&
-            booking.status !==
-              "cancelled"
-        );
-
-      if (alreadyBooked) {
-        return res.status(409).json({
-          error:
-            "This slot already has a booking."
+        res.json({
+            success: true
         });
-      }
-
-      const alreadyBlocked =
-        blocked.some(
-          slot =>
-            slot.date === date &&
-            slot.time === time
-        );
-
-      if (alreadyBlocked) {
-        return res.status(409).json({
-          error:
-            "This slot is already blocked."
-        });
-      }
-
-      const slot = {
-        id: slotId(
-          date,
-          time
-        ),
-
-        date,
-        time,
-
-        reason:
-          reason ||
-          "Blocked by admin",
-
-        createdAt:
-          new Date().toISOString()
-      };
-
-      blocked.push(slot);
-
-      writeJSON(
-        BLOCKED_FILE,
-        blocked
-      );
-
-      res.json({
-        success: true,
-        slot
-      });
-    } catch (error) {
-      console.error(error);
-
-      res.status(500).json({
-        error:
-          "Unable to block slot."
-      });
     }
-  }
 );
 
-/* =====================================================
-   ADMIN UNBLOCK SLOT
-===================================================== */
+// ============================================================
+// ADMIN: UNBLOCK SLOT
+// ============================================================
 
 app.post(
-  "/api/admin/unblock-slot",
-  checkAdmin,
-  (req, res) => {
-    try {
-      const { id } =
-        req.body;
+    "/api/admin/unblock-slot",
+    requireAdmin,
+    (req, res) => {
 
-      if (!id) {
-        return res.status(400).json({
-          error:
-            "Slot ID required."
-        });
-      }
+        const {
+            id
+        } = req.body || {};
 
-      const blocked =
-        readJSON(
-          BLOCKED_FILE
+        const blocked =
+            getBlocked();
+
+        const index =
+            blocked.findIndex(
+                item =>
+                    item.id === id
+            );
+
+        if (index === -1) {
+            return res.status(404).json({
+                error:
+                    "Blocked slot not found."
+            });
+        }
+
+        blocked.splice(index, 1);
+
+        writeJson(
+            BLOCKED_FILE,
+            blocked
         );
 
-      const updated =
-        blocked.filter(
-          slot =>
-            slot.id !== id
-        );
-
-      if (
-        updated.length ===
-        blocked.length
-      ) {
-        return res.status(404).json({
-          error:
-            "Blocked slot not found."
+        res.json({
+            success: true
         });
-      }
-
-      writeJSON(
-        BLOCKED_FILE,
-        updated
-      );
-
-      res.json({
-        success: true
-      });
-    } catch (error) {
-      console.error(error);
-
-      res.status(500).json({
-        error:
-          "Unable to unblock slot."
-      });
     }
-  }
 );
 
-/* =====================================================
-   404
-===================================================== */
+// ============================================================
+// ERROR HANDLER
+// ============================================================
 
 app.use(
-  (req, res) => {
-    res.status(404).json({
-      error:
-        "Route not found."
-    });
-  }
+    (error, req, res, next) => {
+
+        console.error(
+            "Server error:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Internal server error."
+        });
+    }
 );
 
-/* =====================================================
-   START
-===================================================== */
+// ============================================================
+// START
+// ============================================================
 
 app.listen(
-  PORT,
-  () => {
-    console.log(
-      `CRZ backend running on http://localhost:${PORT}`
-    );
-  }
+    PORT,
+    () => {
+        console.log(
+            `CRZ backend running on port ${PORT}`
+        );
+    }
 );
