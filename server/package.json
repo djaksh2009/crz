@@ -1,14 +1,16 @@
 {
-  "name": "crz-notifications",
+  "name": "crz-backend",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^5.1.0",
+    "firebase-admin": "^13.4.0",
+    "nodemailer": "^7.0.6",
+    "razorpay": "^2.9.6"
   }
 }
