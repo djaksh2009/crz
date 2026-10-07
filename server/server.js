@@ -1,203 +1,178 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import admin from "firebase-admin";
-import Razorpay from "razorpay";
-import crypto from "crypto";
-import nodemailer from "nodemailer";
+require("dotenv").config();
 
-dotenv.config();
-
-const app = express();
-
-app.use(
-    cors({
-        origin: process.env.FRONTEND_URL,
-        methods: ["GET", "POST"],
-        allowedHeaders: [
-            "Content-Type",
-            "Authorization"
-        ]
-    })
-);
-
-app.use(express.json());
+const express = require("express");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const admin = require("firebase-admin");
+const nodemailer = require("nodemailer");
+const twilio = require("twilio");
 
 
 /* =====================================================
    FIREBASE
 ===================================================== */
 
-const serviceAccount = JSON.parse(
-    process.env.FIREBASE_SERVICE_ACCOUNT
-);
-
 admin.initializeApp({
     credential:
-        admin.credential.cert(
-            serviceAccount
-        )
+        admin.credential.cert({
+            projectId:
+                process.env.FIREBASE_PROJECT_ID,
+
+            clientEmail:
+                process.env.FIREBASE_CLIENT_EMAIL,
+
+            privateKey:
+                process.env.FIREBASE_PRIVATE_KEY
+                    .replace(/\\n/g, "\n")
+        })
 });
+
 
 const db =
     admin.firestore();
 
 
 /* =====================================================
-   RAZORPAY
+   EXPRESS
 ===================================================== */
 
-const razorpay =
-    new Razorpay({
-        key_id:
-            process.env.RAZORPAY_KEY_ID,
+const app =
+    express();
 
-        key_secret:
-            process.env.RAZORPAY_KEY_SECRET
+
+app.use(
+    cors({
+        origin: true
+    })
+);
+
+
+app.use(
+    express.json()
+);
+
+
+/* =====================================================
+   EMAIL
+===================================================== */
+
+const mailer =
+    nodemailer.createTransport({
+
+        host:
+            process.env.SMTP_HOST,
+
+        port:
+            Number(
+                process.env.SMTP_PORT || 465
+            ),
+
+        secure:
+            process.env.SMTP_SECURE === "true",
+
+        auth: {
+
+            user:
+                process.env.SMTP_USER,
+
+            pass:
+                process.env.SMTP_PASSWORD
+
+        }
+
     });
 
 
 /* =====================================================
-   EMAIL / RESEND
+   SMS
 ===================================================== */
 
-async function sendEmail({
-    to,
-    subject,
-    html
-}) {
+let smsClient =
+    null;
 
-    const response =
-        await fetch(
-            "https://api.resend.com/emails",
-            {
-                method: "POST",
 
-                headers: {
-                    "Authorization":
-                        `Bearer ${process.env.RESEND_API_KEY}`,
+if (
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN
+) {
 
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body: JSON.stringify({
-
-                    from:
-                        process.env.EMAIL_FROM,
-
-                    to: [to],
-
-                    subject,
-
-                    html
-                })
-            }
+    smsClient =
+        twilio(
+            process.env.TWILIO_ACCOUNT_SID,
+            process.env.TWILIO_AUTH_TOKEN
         );
 
-    const result =
-        await response.json();
-
-    if (!response.ok) {
-
-        throw new Error(
-            result.message ||
-            "Email failed."
-        );
-    }
-
-    return result;
 }
 
 
 /* =====================================================
-   SMS / MSG91
+   HELPERS
 ===================================================== */
 
-async function sendSMS({
-    phone,
-    variables
-}) {
+function createToken() {
 
-    /*
-     * MSG91 Flow API.
-     *
-     * Your MSG91 account must have:
-     *
-     * - DLT entity registered
-     * - approved sender/header
-     * - approved DLT template
-     *
-     * Put the approved template ID in:
-     *
-     * MSG91_BOOKING_TEMPLATE_ID
-     */
+    return jwt.sign(
+        {
+            role: "admin"
+        },
 
-    const mobile =
-        String(phone)
-            .replace(/\D/g, "")
-            .replace(/^91/, "");
+        process.env.JWT_SECRET,
 
-    const response =
-        await fetch(
-            process.env.MSG91_FLOW_URL ||
-            "https://control.msg91.com/api/v5/flow",
-            {
-                method: "POST",
+        {
+            expiresIn: "12h"
+        }
+    );
 
-                headers: {
+}
 
-                    "authkey":
-                        process.env.MSG91_AUTH_KEY,
 
-                    "Content-Type":
-                        "application/json"
-                },
+function authenticateAdmin(
+    req,
+    res,
+    next
+) {
 
-                body: JSON.stringify({
+    const header =
+        req.headers.authorization || "";
 
-                    template_id:
-                        process.env.MSG91_BOOKING_TEMPLATE_ID,
 
-                    short_url:
-                        "0",
+    const token =
+        header.startsWith("Bearer ")
+            ? header.slice(7)
+            : null;
 
-                    recipients: [
 
-                        {
-                            mobiles:
-                                `91${mobile}`,
+    if (!token)
+        return res
+            .status(401)
+            .json({
+                message:
+                    "Admin authentication required."
+            });
 
-                            VAR1:
-                                variables.name,
 
-                            VAR2:
-                                variables.date,
+    try {
 
-                            VAR3:
-                                variables.time,
+        req.admin =
+            jwt.verify(
+                token,
+                process.env.JWT_SECRET
+            );
 
-                            VAR4:
-                                variables.amount
-                        }
 
-                    ]
-                })
-            }
-        );
+        next();
 
-    const result =
-        await response.json();
+    } catch {
 
-    if (!response.ok) {
+        res
+            .status(401)
+            .json({
+                message:
+                    "Invalid or expired admin session."
+            });
 
-        throw new Error(
-            result.message ||
-            "SMS failed."
-        );
     }
 
-    return result;
 }
 
 
@@ -205,298 +180,175 @@ async function sendSMS({
    NOTIFICATIONS
 ===================================================== */
 
-async function sendPaymentConfirmed(booking) {
+async function sendEmail(
+    to,
+    subject,
+    html
+) {
 
-    const amount =
-        `₹${Number(
-            booking.total
-        ).toLocaleString("en-IN")}`;
+    if (!process.env.SMTP_USER)
+        return;
 
-    await sendEmail({
 
-        to:
-            booking.email,
+    await mailer.sendMail({
 
-        subject:
-            "CRZ — Payment Confirmed",
+        from:
+            `"CRZ DJ Studio" <${process.env.SMTP_USER}>`,
 
-        html: `
-            <div style="
-                font-family:Arial;
-                max-width:600px;
-                margin:auto;
-                background:#0b0b0b;
-                color:white;
-                padding:40px;
-            ">
+        to,
 
-                <h1>
-                    CRZ<span style="color:#ff1744">.</span>
-                </h1>
+        subject,
 
-                <h2>Payment Confirmed</h2>
+        html
 
-                <p>
-                    Hi ${escapeHTML(booking.name)},
-                </p>
-
-                <p>
-                    Your payment of
-                    <strong>${amount}</strong>
-                    has been received.
-                </p>
-
-                <p>
-                    Your booking is now being confirmed.
-                </p>
-
-            </div>
-        `
     });
 
-    await sendSMS({
-
-        phone:
-            booking.phone,
-
-        variables: {
-            name:
-                booking.name,
-
-            date:
-                booking.date,
-
-            time:
-                booking.time,
-
-            amount
-        }
-    });
 }
 
 
-async function sendBookingConfirmed(booking) {
+async function sendSMS(
+    phone,
+    message
+) {
 
-    const amount =
-        `₹${Number(
-            booking.total
-        ).toLocaleString("en-IN")}`;
-
-    await sendEmail({
-
-        to:
-            booking.email,
-
-        subject:
-            "CRZ — Booking Confirmed",
-
-        html: `
-            <div style="
-                font-family:Arial;
-                max-width:600px;
-                margin:auto;
-                background:#0b0b0b;
-                color:white;
-                padding:40px;
-            ">
-
-                <h1>
-                    CRZ<span style="color:#ff1744">.</span>
-                </h1>
-
-                <h2>Booking Confirmed ✓</h2>
-
-                <p>
-                    Hi ${escapeHTML(booking.name)},
-                </p>
-
-                <p>
-                    Your CRZ session is confirmed.
-                </p>
-
-                <hr style="
-                    border:0;
-                    border-top:1px solid #333;
-                ">
-
-                <p>
-                    <strong>Date:</strong>
-                    ${escapeHTML(booking.date)}
-                </p>
-
-                <p>
-                    <strong>Time:</strong>
-                    ${escapeHTML(booking.time)}
-                </p>
-
-                <p>
-                    <strong>Service:</strong>
-                    ${escapeHTML(booking.serviceName)}
-                </p>
-
-                <p>
-                    <strong>Paid:</strong>
-                    ${amount}
-                </p>
-
-            </div>
-        `
-    });
-
-    await sendSMS({
-
-        phone:
-            booking.phone,
-
-        variables: {
-            name:
-                booking.name,
-
-            date:
-                booking.date,
-
-            time:
-                booking.time,
-
-            amount
-        }
-    });
+    if (
+        !smsClient ||
+        !process.env.TWILIO_PHONE_NUMBER
+    )
+        return;
 
 
-    /*
-     * ADMIN NOTIFICATION
-     */
+    await smsClient.messages.create({
 
-    await sendEmail({
+        body:
+            message,
+
+        from:
+            process.env.TWILIO_PHONE_NUMBER,
 
         to:
-            process.env.ADMIN_EMAIL,
+            phone
 
-        subject:
-            `CRZ — New Booking — ${booking.date} ${booking.time}`,
-
-        html: `
-            <h2>New CRZ Booking</h2>
-
-            <p>
-                <strong>Name:</strong>
-                ${escapeHTML(booking.name)}
-            </p>
-
-            <p>
-                <strong>Email:</strong>
-                ${escapeHTML(booking.email)}
-            </p>
-
-            <p>
-                <strong>Phone:</strong>
-                ${escapeHTML(booking.phone)}
-            </p>
-
-            <p>
-                <strong>Date:</strong>
-                ${escapeHTML(booking.date)}
-            </p>
-
-            <p>
-                <strong>Time:</strong>
-                ${escapeHTML(booking.time)}
-            </p>
-
-            <p>
-                <strong>Service:</strong>
-                ${escapeHTML(booking.serviceName)}
-            </p>
-
-            <p>
-                <strong>Total:</strong>
-                ₹${Number(
-                    booking.total
-                ).toLocaleString("en-IN")}
-            </p>
-        `
     });
+
 }
 
 
 /* =====================================================
-   SLOT HELPERS
-===================================================== */
-
-function slotId(date, time) {
-
-    return `${date}__${time}`
-        .replaceAll("/", "-")
-        .replaceAll(" ", "_")
-        .replaceAll("–", "-");
-}
-
-
-/* =====================================================
-   CHECK SLOT
+   HEALTH
 ===================================================== */
 
 app.get(
-    "/api/slot-status",
-    async (req, res) => {
+    "/api/health",
+    (req,res) => {
+
+        res.json({
+
+            success:
+                true,
+
+            service:
+                "CRZ Backend",
+
+            status:
+                "online"
+
+        });
+
+    }
+);
+
+
+/* =====================================================
+   AVAILABILITY
+===================================================== */
+
+app.get(
+    "/api/availability",
+    async (req,res) => {
 
         try {
 
-            const {
-                date,
-                time
-            } = req.query;
+            const date =
+                req.query.date;
 
-            if (!date || !time) {
 
-                return res.status(400).json({
-                    error:
-                        "Date and time required."
-                });
-            }
+            if (!date)
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            "Date required."
+                    });
 
-            const id =
-                slotId(date, time);
 
-            const slot =
+            const bookingsSnapshot =
                 await db
-                    .collection("slots")
-                    .doc(id)
+                    .collection("bookings")
+                    .where(
+                        "date",
+                        "==",
+                        date
+                    )
                     .get();
 
-            if (!slot.exists) {
 
-                return res.json({
-                    available: true
-                });
-            }
+            const blockedSnapshot =
+                await db
+                    .collection("blockedSlots")
+                    .where(
+                        "date",
+                        "==",
+                        date
+                    )
+                    .get();
 
-            const data =
-                slot.data();
 
-            if (
-                data.type === "blocked" ||
-                data.type === "booking"
-            ) {
+            const bookings =
+                bookingsSnapshot.docs.map(
+                    doc => ({
+                        id:
+                            doc.id,
 
-                return res.json({
-                    available: false
-                });
-            }
+                        ...doc.data()
+                    })
+                );
+
+
+            const blocked =
+                blockedSnapshot.docs.map(
+                    doc => ({
+                        id:
+                            doc.id,
+
+                        ...doc.data()
+                    })
+                );
+
 
             res.json({
-                available: true
+
+                bookings,
+
+                blocked
+
             });
+
 
         } catch (error) {
 
             console.error(error);
 
-            res.status(500).json({
-                error:
-                    "Could not check availability."
-            });
+
+            res
+                .status(500)
+                .json({
+                    message:
+                        "Availability check failed."
+                });
+
         }
+
     }
 );
 
@@ -506,26 +358,24 @@ app.get(
 ===================================================== */
 
 app.post(
-    "/api/bookings/create",
-    async (req, res) => {
+    "/api/bookings",
+    async (req,res) => {
 
         try {
 
             const {
+
                 name,
                 email,
                 phone,
                 date,
                 time,
-                service
+                service,
+                serviceName,
+                amount
+
             } = req.body;
 
-            const prices = {
-                250: "Practice",
-                400: "Practice + Audio",
-                500: "Practice + Audio + Video",
-                1500: "Edited Recording"
-            };
 
             if (
                 !name ||
@@ -533,141 +383,227 @@ app.post(
                 !phone ||
                 !date ||
                 !time ||
-                !prices[service]
+                !service
             ) {
 
-                return res.status(400).json({
-                    error:
-                        "Invalid booking information."
-                });
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            "Complete booking details required."
+                    });
+
             }
 
-            const total =
-                Number(service);
 
-            const slot =
-                slotId(date, time);
-
-            const slotRef =
-                db.collection("slots")
-                    .doc(slot);
+            /*
+               Transaction prevents two people
+               booking the same slot simultaneously.
+            */
 
             const bookingRef =
-                db.collection("bookings")
+                db
+                    .collection("bookings")
                     .doc();
 
-            await db.runTransaction(
-                async transaction => {
 
-                    const existing =
-                        await transaction.get(
-                            slotRef
-                        );
+            const result =
+                await db.runTransaction(
+                    async transaction => {
 
-                    if (existing.exists) {
+                        const bookingsSnapshot =
+                            await transaction.get(
+                                db
+                                    .collection("bookings")
+                                    .where(
+                                        "date",
+                                        "==",
+                                        date
+                                    )
+                            );
 
-                        throw new Error(
-                            "SLOT_UNAVAILABLE"
-                        );
-                    }
 
-                    transaction.set(
-                        slotRef,
-                        {
-                            type:
-                                "booking",
+                        const blockedSnapshot =
+                            await transaction.get(
+                                db
+                                    .collection("blockedSlots")
+                                    .where(
+                                        "date",
+                                        "==",
+                                        date
+                                    )
+                            );
 
-                            bookingId:
-                                bookingRef.id,
 
-                            date,
-                            time,
+                        const alreadyBooked =
+                            bookingsSnapshot.docs.some(
+                                doc => {
 
-                            status:
-                                "pending_payment",
+                                    const data =
+                                        doc.data();
 
-                            createdAt:
-                                admin.firestore.FieldValue.serverTimestamp()
+                                    return (
+                                        data.time === time &&
+                                        data.status !== "cancelled"
+                                    );
+
+                                }
+                            );
+
+
+                        const blocked =
+                            blockedSnapshot.docs.some(
+                                doc =>
+                                    doc.data().time === time
+                            );
+
+
+                        if (
+                            alreadyBooked ||
+                            blocked
+                        ) {
+
+                            throw new Error(
+                                "SLOT_UNAVAILABLE"
+                            );
+
                         }
-                    );
 
-                    transaction.set(
-                        bookingRef,
-                        {
+
+                        const booking = {
 
                             name,
+
                             email,
+
                             phone,
 
                             date,
+
                             time,
 
-                            service:
-                                Number(service),
+                            service,
 
-                            serviceName:
-                                prices[service],
+                            serviceName,
 
-                            total,
+                            amount:
+
+                                Number(
+                                    amount || 0
+                                ),
 
                             status:
-                                "pending_payment",
+                                "pending",
 
                             paymentStatus:
                                 "pending",
 
-                            slotId:
-                                slot,
-
                             createdAt:
-                                admin.firestore.FieldValue.serverTimestamp()
-                        }
-                    );
-                }
+                                admin.firestore
+                                    .FieldValue
+                                    .serverTimestamp()
+
+                        };
+
+
+                        transaction.set(
+                            bookingRef,
+                            booking
+                        );
+
+
+                        return booking;
+
+                    }
+                );
+
+
+            /*
+               Customer receives a request
+               acknowledgement.
+
+               This is NOT payment confirmation.
+            */
+
+            await sendEmail(
+
+                email,
+
+                "CRZ Booking Request Received",
+
+                `
+                <h2>CRZ — Booking Request</h2>
+
+                <p>Hi ${name},</p>
+
+                <p>
+                    We received your booking request.
+                </p>
+
+                <p>
+                    <b>Date:</b> ${date}<br>
+                    <b>Time:</b> ${time}<br>
+                    <b>Service:</b> ${serviceName}
+                </p>
+
+                <p>
+                    Your booking is currently pending.
+                    CRZ will confirm payment and the booking separately.
+                </p>
+                `
+
             );
 
-            const order =
-                await razorpay.orders.create({
 
-                    amount:
-                        total * 100,
+            await sendSMS(
 
-                    currency:
-                        "INR",
+                phone,
 
-                    receipt:
-                        bookingRef.id,
+                `CRZ: Booking request received for ${date}, ${time}. Your booking is pending confirmation.`
 
-                    notes: {
-                        bookingId:
-                            bookingRef.id,
+            );
 
-                        date,
-                        time
-                    }
-                });
 
-            await bookingRef.update({
+            /*
+               Notify admin.
+            */
 
-                razorpayOrderId:
-                    order.id
+            await sendEmail(
 
-            });
+                process.env.CRZ_ADMIN_EMAIL,
+
+                "New CRZ Booking Request",
+
+                `
+                <h2>New CRZ Booking</h2>
+
+                <p>
+                    <b>Name:</b> ${name}<br>
+                    <b>Email:</b> ${email}<br>
+                    <b>Phone:</b> ${phone}<br>
+                    <b>Date:</b> ${date}<br>
+                    <b>Time:</b> ${time}<br>
+                    <b>Service:</b> ${serviceName}<br>
+                    <b>Amount:</b> ₹${amount}
+                </p>
+                `
+
+            );
+
 
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 bookingId:
                     bookingRef.id,
 
-                razorpayKey:
-                    process.env.RAZORPAY_KEY_ID,
-
-                razorpayOrder:
-                    order
+                message:
+                    "Booking request received."
 
             });
+
 
         } catch (error) {
 
@@ -676,212 +612,45 @@ app.post(
                 "SLOT_UNAVAILABLE"
             ) {
 
-                return res.status(409).json({
-                    error:
-                        "That time slot is already booked."
-                });
+                return res
+                    .status(409)
+                    .json({
+                        message:
+                            "That slot is already booked or unavailable."
+                    });
+
             }
+
 
             console.error(error);
 
-            res.status(500).json({
-                error:
-                    "Unable to create booking."
-            });
+
+            res
+                .status(500)
+                .json({
+                    message:
+                        "Could not create booking."
+                });
+
         }
+
     }
 );
 
 
 /* =====================================================
-   VERIFY PAYMENT
+   ADMIN LOGIN
 ===================================================== */
-
-app.post(
-    "/api/payments/verify",
-    async (req, res) => {
-
-        try {
-
-            const {
-                bookingId,
-                razorpay_order_id,
-                razorpay_payment_id,
-                razorpay_signature
-            } = req.body;
-
-            const expectedSignature =
-                crypto
-                    .createHmac(
-                        "sha256",
-                        process.env.RAZORPAY_KEY_SECRET
-                    )
-                    .update(
-                        `${razorpay_order_id}|${razorpay_payment_id}`
-                    )
-                    .digest("hex");
-
-            if (
-                expectedSignature !==
-                razorpay_signature
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Invalid payment signature."
-                });
-            }
-
-            const bookingRef =
-                db
-                    .collection("bookings")
-                    .doc(bookingId);
-
-            const bookingSnapshot =
-                await bookingRef.get();
-
-            if (!bookingSnapshot.exists) {
-
-                return res.status(404).json({
-                    error:
-                        "Booking not found."
-                });
-            }
-
-            const booking =
-                bookingSnapshot.data();
-
-            if (
-                booking.paymentStatus ===
-                "paid"
-            ) {
-
-                return res.json({
-                    success: true
-                });
-            }
-
-            await bookingRef.update({
-
-                paymentStatus:
-                    "paid",
-
-                status:
-                    "confirmed",
-
-                razorpayPaymentId:
-                    razorpay_payment_id,
-
-                paidAt:
-                    admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            const confirmedBooking = {
-
-                ...booking,
-
-                paymentStatus:
-                    "paid",
-
-                status:
-                    "confirmed"
-            };
-
-            /*
-             * 1ST NOTIFICATION
-             * PAYMENT CONFIRMED
-             */
-
-            try {
-
-                await sendPaymentConfirmed(
-                    confirmedBooking
-                );
-
-            } catch (notificationError) {
-
-                console.error(
-                    "Payment notification failed:",
-                    notificationError
-                );
-            }
-
-
-            /*
-             * 2ND NOTIFICATION
-             * BOOKING CONFIRMED
-             */
-
-            try {
-
-                await sendBookingConfirmed(
-                    confirmedBooking
-                );
-
-            } catch (notificationError) {
-
-                console.error(
-                    "Booking notification failed:",
-                    notificationError
-                );
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(error);
-
-            res.status(500).json({
-                error:
-                    "Payment verification failed."
-            });
-        }
-    }
-);
-
-
-/* =====================================================
-   ADMIN AUTH
-===================================================== */
-
-function checkAdmin(req, res, next) {
-
-    const auth =
-        req.headers.authorization || "";
-
-    const token =
-        auth.replace(
-            "Bearer ",
-            ""
-        );
-
-    if (
-        !token ||
-        token !==
-            process.env.ADMIN_TOKEN
-    ) {
-
-        return res.status(401).json({
-            error:
-                "Unauthorized."
-        });
-    }
-
-    next();
-}
-
 
 app.post(
     "/api/admin/login",
-    async (req, res) => {
+    (req,res) => {
 
         const {
             email,
             password
         } = req.body;
+
 
         if (
             email !==
@@ -890,19 +659,26 @@ app.post(
                 process.env.ADMIN_PASSWORD
         ) {
 
-            return res.status(401).json({
-                error:
-                    "Invalid email or password."
-            });
+            return res
+                .status(401)
+                .json({
+                    message:
+                        "Invalid admin credentials."
+                });
+
         }
+
 
         res.json({
 
-            success: true,
+            success:
+                true,
 
             token:
-                process.env.ADMIN_TOKEN
+                createToken()
+
         });
+
     }
 );
 
@@ -913,128 +689,479 @@ app.post(
 
 app.get(
     "/api/admin/dashboard",
-    checkAdmin,
-    async (req, res) => {
+    authenticateAdmin,
+    async (req,res) => {
 
         try {
 
-            const bookingSnapshot =
+            const snapshot =
                 await db
                     .collection("bookings")
                     .orderBy(
                         "createdAt",
                         "desc"
                     )
-                    .limit(200)
                     .get();
 
+
             const bookings =
-                bookingSnapshot.docs.map(
+                snapshot.docs.map(
                     doc => ({
-                        id: doc.id,
+                        id:
+                            doc.id,
+
                         ...doc.data()
                     })
                 );
+
 
             const blockedSnapshot =
                 await db
                     .collection("blockedSlots")
                     .orderBy(
-                        "date",
-                        "asc"
+                        "date"
                     )
                     .get();
 
-            const blockedSlots =
+
+            const blocked =
                 blockedSnapshot.docs.map(
                     doc => ({
-                        id: doc.id,
+                        id:
+                            doc.id,
+
                         ...doc.data()
                     })
                 );
+
 
             const today =
                 new Date()
                     .toISOString()
                     .slice(0,10);
 
-            const confirmed =
-                bookings.filter(
-                    booking =>
-                        booking.status ===
-                        "confirmed"
-                );
 
             const todayCount =
-                confirmed.filter(
-                    booking =>
-                        booking.date === today
+                bookings.filter(
+                    b =>
+                        b.date === today &&
+                        b.status !== "cancelled"
                 ).length;
+
 
             const futureCount =
-                confirmed.filter(
-                    booking =>
-                        booking.date > today
+                bookings.filter(
+                    b =>
+                        b.date > today &&
+                        b.status !== "cancelled"
                 ).length;
 
-            const completedCount =
-                confirmed.filter(
-                    booking =>
-                        booking.date < today
+
+            const pendingPaymentCount =
+                bookings.filter(
+                    b =>
+                        b.paymentStatus ===
+                        "pending" &&
+                        b.status !==
+                        "cancelled"
                 ).length;
+
 
             const revenue =
-                confirmed.reduce(
-                    (sum, booking) =>
-                        sum +
-                        Number(
-                            booking.total || 0
-                        ),
-                    0
-                );
+                bookings
+                    .filter(
+                        b =>
+                            b.paymentStatus ===
+                            "confirmed"
+                    )
+                    .reduce(
+                        (
+                            total,
+                            b
+                        ) =>
+                            total +
+                            Number(
+                                b.amount || 0
+                            ),
+                        0
+                    );
+
 
             res.json({
 
                 bookings,
 
-                blockedSlots,
+                blocked,
 
-                stats: {
+                todayCount,
 
-                    today:
-                        todayCount,
+                futureCount,
 
-                    future:
-                        futureCount,
+                pendingPaymentCount,
 
-                    completed:
-                        completedCount,
+                revenue
 
-                    revenue
-                }
             });
+
 
         } catch (error) {
 
             console.error(error);
 
-            res.status(500).json({
-                error:
-                    "Dashboard failed."
-            });
+
+            res
+                .status(500)
+                .json({
+                    message:
+                        "Dashboard failed."
+                });
+
         }
+
     }
 );
 
 
 /* =====================================================
-   BLOCK ANY DATE + ANY TIME
+   PAYMENT CONFIRMED
 ===================================================== */
 
 app.post(
-    "/api/admin/block-slot",
-    checkAdmin,
-    async (req, res) => {
+    "/api/admin/bookings/:id/payment",
+    authenticateAdmin,
+    async (req,res) => {
+
+        try {
+
+            const ref =
+                db
+                    .collection("bookings")
+                    .doc(
+                        req.params.id
+                    );
+
+
+            const snapshot =
+                await ref.get();
+
+
+            if (!snapshot.exists)
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            "Booking not found."
+                    });
+
+
+            const booking =
+                snapshot.data();
+
+
+            await ref.update({
+
+                paymentStatus:
+                    "confirmed",
+
+                paymentConfirmedAt:
+                    admin.firestore
+                        .FieldValue
+                        .serverTimestamp()
+
+            });
+
+
+            /*
+               Payment confirmation email.
+            */
+
+            await sendEmail(
+
+                booking.email,
+
+                "CRZ Payment Confirmed",
+
+                `
+                <h2>CRZ — Payment Confirmed</h2>
+
+                <p>
+                    Hi ${booking.name},
+                </p>
+
+                <p>
+                    Your payment has been confirmed.
+                </p>
+
+                <p>
+                    <b>Date:</b> ${booking.date}<br>
+                    <b>Time:</b> ${booking.time}<br>
+                    <b>Service:</b> ${booking.serviceName}
+                </p>
+
+                <p>
+                    Your booking is now ready for final confirmation.
+                </p>
+                `
+
+            );
+
+
+            await sendSMS(
+
+                booking.phone,
+
+                `CRZ: Payment confirmed for your ${booking.date} ${booking.time} session. Booking confirmation will follow.`
+
+            );
+
+
+            res.json({
+
+                success:
+                    true
+
+            });
+
+
+        } catch (error) {
+
+            console.error(error);
+
+
+            res
+                .status(500)
+                .json({
+                    message:
+                        "Could not confirm payment."
+                });
+
+        }
+
+    }
+);
+
+
+/* =====================================================
+   BOOKING CONFIRMED
+===================================================== */
+
+app.post(
+    "/api/admin/bookings/:id/confirm",
+    authenticateAdmin,
+    async (req,res) => {
+
+        try {
+
+            const ref =
+                db
+                    .collection("bookings")
+                    .doc(
+                        req.params.id
+                    );
+
+
+            const snapshot =
+                await ref.get();
+
+
+            if (!snapshot.exists)
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            "Booking not found."
+                    });
+
+
+            const booking =
+                snapshot.data();
+
+
+            if (
+                booking.paymentStatus !==
+                "confirmed"
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            "Payment must be confirmed first."
+                    });
+
+            }
+
+
+            await ref.update({
+
+                status:
+                    "confirmed",
+
+                confirmedAt:
+                    admin.firestore
+                        .FieldValue
+                        .serverTimestamp()
+
+            });
+
+
+            /*
+               Booking confirmation email.
+            */
+
+            await sendEmail(
+
+                booking.email,
+
+                "CRZ Booking Confirmed",
+
+                `
+                <h2>CRZ — Booking Confirmed</h2>
+
+                <p>
+                    Hi ${booking.name},
+                </p>
+
+                <p>
+                    Your CRZ session is officially confirmed.
+                </p>
+
+                <p>
+                    <b>Date:</b> ${booking.date}<br>
+                    <b>Time:</b> ${booking.time}<br>
+                    <b>Service:</b> ${booking.serviceName}
+                </p>
+
+                <p>
+                    See you at CRZ Bengaluru.
+                </p>
+                `
+
+            );
+
+
+            await sendSMS(
+
+                booking.phone,
+
+                `CRZ: Your booking is CONFIRMED for ${booking.date}, ${booking.time}. See you at CRZ Bengaluru.`
+
+            );
+
+
+            res.json({
+
+                success:
+                    true
+
+            });
+
+
+        } catch (error) {
+
+            console.error(error);
+
+
+            res
+                .status(500)
+                .json({
+                    message:
+                        "Could not confirm booking."
+                });
+
+        }
+
+    }
+);
+
+
+/* =====================================================
+   STATUS
+===================================================== */
+
+app.patch(
+    "/api/admin/bookings/:id/status",
+    authenticateAdmin,
+    async (req,res) => {
+
+        try {
+
+            const status =
+                req.body.status;
+
+
+            const allowed = [
+
+                "pending",
+
+                "confirmed",
+
+                "completed",
+
+                "cancelled"
+
+            ];
+
+
+            if (
+                !allowed.includes(
+                    status
+                )
+            )
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            "Invalid booking status."
+                    });
+
+
+            await db
+                .collection("bookings")
+                .doc(
+                    req.params.id
+                )
+                .update({
+
+                    status
+
+                });
+
+
+            res.json({
+
+                success:
+                    true
+
+            });
+
+
+        } catch (error) {
+
+            console.error(error);
+
+
+            res
+                .status(500)
+                .json({
+                    message:
+                        "Could not update status."
+                });
+
+        }
+
+    }
+);
+
+
+/* =====================================================
+   BLOCK SLOT
+===================================================== */
+
+app.post(
+    "/api/admin/block",
+    authenticateAdmin,
+    async (req,res) => {
 
         try {
 
@@ -1044,281 +1171,94 @@ app.post(
                 reason
             } = req.body;
 
-            if (!date || !time) {
 
-                return res.status(400).json({
-                    error:
-                        "Date and time required."
-                });
-            }
+            const bookingSnapshot =
+                await db
+                    .collection("bookings")
+                    .where(
+                        "date",
+                        "==",
+                        date
+                    )
+                    .get();
 
-            const id =
-                slotId(date, time);
 
-            const slotRef =
-                db.collection("slots")
-                    .doc(id);
+            const conflictingBooking =
+                bookingSnapshot.docs.some(
+                    doc => {
 
-            const blockedRef =
-                db.collection("blockedSlots")
-                    .doc(id);
+                        const booking =
+                            doc.data();
 
-            await db.runTransaction(
-                async transaction => {
 
-                    const existing =
-                        await transaction.get(
-                            slotRef
+                        return (
+                            booking.time === time &&
+                            booking.status !==
+                                "cancelled"
                         );
 
-                    if (existing.exists) {
-
-                        const data =
-                            existing.data();
-
-                        if (
-                            data.type ===
-                            "booking"
-                        ) {
-
-                            throw new Error(
-                                "ALREADY_BOOKED"
-                            );
-                        }
                     }
+                );
 
-                    transaction.set(
-                        slotRef,
-                        {
-                            type:
-                                "blocked",
-
-                            date,
-                            time,
-
-                            reason:
-                                reason ||
-                                "Blocked by admin",
-
-                            createdAt:
-                                admin.firestore.FieldValue.serverTimestamp()
-                        }
-                    );
-
-                    transaction.set(
-                        blockedRef,
-                        {
-                            date,
-                            time,
-
-                            reason:
-                                reason ||
-                                "Blocked by admin",
-
-                            createdAt:
-                                admin.firestore.FieldValue.serverTimestamp()
-                        }
-                    );
-                }
-            );
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
 
             if (
-                error.message ===
-                "ALREADY_BOOKED"
+                conflictingBooking
             ) {
 
-                return res.status(409).json({
-                    error:
-                        "This slot already has a booking."
-                });
+                return res
+                    .status(409)
+                    .json({
+                        message:
+                            "A booking already exists for this slot."
+                    });
+
             }
 
-            console.error(error);
-
-            res.status(500).json({
-                error:
-                    "Unable to block slot."
-            });
-        }
-    }
-);
-
-
-/* =====================================================
-   UNBLOCK
-===================================================== */
-
-app.post(
-    "/api/admin/unblock-slot",
-    checkAdmin,
-    async (req, res) => {
-
-        try {
-
-            const {
-                id
-            } = req.body;
-
-            if (!id) {
-
-                return res.status(400).json({
-                    error:
-                        "Slot ID required."
-                });
-            }
 
             await db
                 .collection("blockedSlots")
-                .doc(id)
-                .delete();
+                .add({
 
-            const slotRef =
-                db
-                    .collection("slots")
-                    .doc(id);
+                    date,
 
-            const slot =
-                await slotRef.get();
+                    time,
 
-            if (
-                slot.exists &&
-                slot.data().type ===
-                    "blocked"
-            ) {
+                    reason:
+                        reason ||
+                        "Blocked by CRZ admin",
 
-                await slotRef.delete();
-            }
+                    createdAt:
+                        admin.firestore
+                            .FieldValue
+                            .serverTimestamp()
+
+                });
+
 
             res.json({
-                success: true
+
+                success:
+                    true
+
             });
+
 
         } catch (error) {
 
             console.error(error);
 
-            res.status(500).json({
-                error:
-                    "Unable to unblock slot."
-            });
-        }
-    }
-);
 
-
-/* =====================================================
-   EMAIL/SMS TEST
-===================================================== */
-
-app.post(
-    "/api/admin/test-notifications",
-    checkAdmin,
-    async (req, res) => {
-
-        const {
-            email,
-            phone
-        } = req.body;
-
-        try {
-
-            if (email) {
-
-                await sendEmail({
-
-                    to: email,
-
-                    subject:
-                        "CRZ — Test Email",
-
-                    html: `
-                        <h2>CRZ Test Email ✓</h2>
-                        <p>
-                            Your CRZ email notification
-                            system is working.
-                        </p>
-                    `
+            res
+                .status(500)
+                .json({
+                    message:
+                        "Could not block slot."
                 });
-            }
 
-            if (phone) {
-
-                await sendSMS({
-
-                    phone,
-
-                    variables: {
-
-                        name:
-                            "CRZ Test",
-
-                        date:
-                            "Test",
-
-                        time:
-                            "Test",
-
-                        amount:
-                            "₹0"
-                    }
-                });
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(error);
-
-            res.status(500).json({
-                error:
-                    error.message
-            });
         }
+
     }
 );
-
-
-/* =====================================================
-   HEALTH
-===================================================== */
-
-app.get(
-    "/",
-    (req, res) => {
-
-        res.json({
-            status:
-                "online",
-
-            message:
-                "CRZ backend is working 🚀"
-        });
-    }
-);
-
-
-/* =====================================================
-   HELPERS
-===================================================== */
-
-function escapeHTML(value) {
-
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
 
 
 /* =====================================================
@@ -1326,14 +1266,16 @@ function escapeHTML(value) {
 ===================================================== */
 
 const PORT =
-    process.env.PORT || 5000;
+    process.env.PORT || 3000;
+
 
 app.listen(
     PORT,
     () => {
 
         console.log(
-            `CRZ backend running on ${PORT}`
+            `CRZ backend running on port ${PORT}`
         );
+
     }
 );
