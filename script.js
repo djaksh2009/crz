@@ -1,80 +1,393 @@
-/* =========================================================
-   CRZ — FRONTEND ENGINE
-========================================================= */
+const API_BASE = "https://crz-backend.onrender.com";
 
+const TIME_SLOTS = [
+    "09:00 AM – 10:00 AM",
+    "10:00 AM – 11:00 AM",
+    "11:00 AM – 12:00 PM",
+    "12:00 PM – 01:00 PM",
+    "01:00 PM – 02:00 PM",
+    "02:00 PM – 03:00 PM",
+    "03:00 PM – 04:00 PM",
+    "04:00 PM – 05:00 PM",
+    "05:00 PM – 06:00 PM",
+    "06:00 PM – 07:00 PM",
+    "07:00 PM – 08:00 PM"
+];
 
-/* -----------------------------
-   STORAGE
------------------------------ */
+const SERVICE_NAMES = {
+    250: "Practice",
+    400: "Practice + Audio",
+    500: "Practice + Audio + Video",
+    1500: "Edited Recording"
+};
 
-let bookings =
-    JSON.parse(
-        localStorage.getItem("crzBookings") || "[]"
+const bookingTime = document.getElementById("bookingTime");
+const blockTimeSelect = document.getElementById("blockTime");
+
+TIME_SLOTS.forEach(slot => {
+
+    bookingTime.add(
+        new Option(slot, slot)
     );
 
-
-let blockedSlots =
-    JSON.parse(
-        localStorage.getItem("crzBlocked") || "[]"
+    blockTimeSelect.add(
+        new Option(slot, slot)
     );
+});
 
+const today = new Date();
 
-/* -----------------------------
-   DEFAULT ADMIN
------------------------------ */
+const yyyy = today.getFullYear();
+const mm = String(today.getMonth() + 1).padStart(2, "0");
+const dd = String(today.getDate()).padStart(2, "0");
 
-const ADMIN_EMAIL = "admin@crzstudio.in";
-const ADMIN_PASSWORD = "CRZadmin2026";
+const todayString = `${yyyy}-${mm}-${dd}`;
 
+document.getElementById("bookingDate").min = todayString;
+document.getElementById("blockDate").min = todayString;
 
-/* -----------------------------
-   DATE
------------------------------ */
+document
+    .getElementById("bookingService")
+    .addEventListener("change", updateTotal);
 
-const dateInput =
-    document.getElementById("bookingDate");
+document
+    .getElementById("bookingDate")
+    .addEventListener("change", checkSlot);
 
-
-const today =
-    new Date()
-        .toISOString()
-        .split("T")[0];
-
-
-dateInput.min = today;
-
-
-/* -----------------------------
-   BOOKING PRICE
------------------------------ */
-
-const serviceInput =
-    document.getElementById("bookingService");
-
-
-const totalDisplay =
-    document.getElementById("bookingTotal");
-
-
-serviceInput.addEventListener(
-    "change",
-    updateTotal
-);
-
+document
+    .getElementById("bookingTime")
+    .addEventListener("change", checkSlot);
 
 function updateTotal() {
 
     const price =
-        Number(serviceInput.value || 0);
+        Number(
+            document.getElementById(
+                "bookingService"
+            ).value
+        ) || 0;
 
-    totalDisplay.textContent =
-        `₹${price.toLocaleString("en-IN")}`;
+    document.getElementById(
+        "bookingTotal"
+    ).textContent = `₹${price.toLocaleString("en-IN")}`;
 }
 
+async function checkSlot() {
 
-/* -----------------------------
-   SCROLL
------------------------------ */
+    const date =
+        document.getElementById("bookingDate").value;
+
+    const time =
+        document.getElementById("bookingTime").value;
+
+    const status =
+        document.getElementById("slotStatus");
+
+    if (!date || !time) {
+
+        status.textContent = "";
+        status.className = "slot-status";
+
+        return;
+    }
+
+    status.textContent = "Checking availability...";
+    status.className = "slot-status";
+
+    try {
+
+        const response = await fetch(
+            `${API_BASE}/api/slot-status?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.error || "Unable to check slot."
+            );
+        }
+
+        if (result.available) {
+
+            status.textContent =
+                "✓ Slot available";
+
+            status.className =
+                "slot-status available";
+
+        } else {
+
+            status.textContent =
+                "✕ BOOKED";
+
+            status.className =
+                "slot-status unavailable";
+
+        }
+
+    } catch (error) {
+
+        status.textContent =
+            "Unable to check availability.";
+
+        status.className =
+            "slot-status unavailable";
+    }
+}
+
+async function createBooking() {
+
+    const button =
+        document.getElementById("checkoutButton");
+
+    const booking = {
+
+        name:
+            document.getElementById(
+                "bookingName"
+            ).value.trim(),
+
+        email:
+            document.getElementById(
+                "bookingEmail"
+            ).value.trim(),
+
+        phone:
+            document.getElementById(
+                "bookingPhone"
+            ).value.trim(),
+
+        date:
+            document.getElementById(
+                "bookingDate"
+            ).value,
+
+        time:
+            document.getElementById(
+                "bookingTime"
+            ).value,
+
+        service:
+            Number(
+                document.getElementById(
+                    "bookingService"
+                ).value
+            )
+    };
+
+    if (
+        !booking.name ||
+        !booking.email ||
+        !booking.phone ||
+        !booking.date ||
+        !booking.time ||
+        !booking.service
+    ) {
+
+        showToast(
+            "Please complete all booking details."
+        );
+
+        return;
+    }
+
+    button.disabled = true;
+    button.innerHTML = "CHECKING SLOT...";
+
+    try {
+
+        const response = await fetch(
+            `${API_BASE}/api/bookings/create`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify(booking)
+            }
+        );
+
+        const result =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                result.error ||
+                "Unable to create booking."
+            );
+        }
+
+        if (!result.razorpayOrder) {
+
+            throw new Error(
+                "Payment gateway is not configured."
+            );
+        }
+
+        await openRazorpay(
+            result,
+            booking
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message
+        );
+
+        button.disabled = false;
+        button.innerHTML =
+            "CONTINUE TO PAYMENT <span>↗</span>";
+    }
+}
+
+async function openRazorpay(
+    bookingResult,
+    booking
+) {
+
+    const options = {
+
+        key:
+            bookingResult.razorpayKey,
+
+        amount:
+            bookingResult.razorpayOrder.amount,
+
+        currency: "INR",
+
+        name: "CRZ Studio",
+
+        description:
+            `${SERVICE_NAMES[booking.service]} — ${booking.time}`,
+
+        order_id:
+            bookingResult.razorpayOrder.id,
+
+        prefill: {
+            name: booking.name,
+            email: booking.email,
+            contact: booking.phone
+        },
+
+        theme: {
+            color: "#ff1744"
+        },
+
+        handler: async function(response) {
+
+            try {
+
+                const verifyResponse =
+                    await fetch(
+                        `${API_BASE}/api/payments/verify`,
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify({
+
+                                bookingId:
+                                    bookingResult.bookingId,
+
+                                razorpay_order_id:
+                                    response.razorpay_order_id,
+
+                                razorpay_payment_id:
+                                    response.razorpay_payment_id,
+
+                                razorpay_signature:
+                                    response.razorpay_signature
+                            })
+                        }
+                    );
+
+                const result =
+                    await verifyResponse.json();
+
+                if (!verifyResponse.ok) {
+
+                    throw new Error(
+                        result.error ||
+                        "Payment verification failed."
+                    );
+                }
+
+                showToast(
+                    "Payment successful. Booking confirmed!"
+                );
+
+                document
+                    .getElementById("bookingName")
+                    .value = "";
+
+                document
+                    .getElementById("bookingEmail")
+                    .value = "";
+
+                document
+                    .getElementById("bookingPhone")
+                    .value = "";
+
+                document
+                    .getElementById("bookingDate")
+                    .value = "";
+
+                document
+                    .getElementById("bookingTime")
+                    .value = "";
+
+                document
+                    .getElementById("bookingService")
+                    .value = "";
+
+                updateTotal();
+
+            } catch (error) {
+
+                showToast(
+                    error.message
+                );
+            }
+
+            document
+                .getElementById("checkoutButton")
+                .disabled = false;
+
+            document
+                .getElementById("checkoutButton")
+                .innerHTML =
+                    "CONTINUE TO PAYMENT <span>↗</span>";
+        },
+
+        modal: {
+            ondismiss: function() {
+
+                document
+                    .getElementById("checkoutButton")
+                    .disabled = false;
+
+                document
+                    .getElementById("checkoutButton")
+                    .innerHTML =
+                        "CONTINUE TO PAYMENT <span>↗</span>";
+            }
+        }
+    };
+
+    const rzp =
+        new Razorpay(options);
+
+    rzp.open();
+}
 
 function scrollToBooking() {
 
@@ -85,302 +398,48 @@ function scrollToBooking() {
         });
 }
 
+/* =========================
+   ADMIN
+========================= */
 
-/* -----------------------------
-   CHECK SLOT
------------------------------ */
+function openAdminLogin() {
 
-function slotIsUnavailable(date, time) {
-
-    return blockedSlots.some(slot =>
-        slot.date === date &&
-        slot.time === time
-    );
+    document
+        .getElementById("adminModal")
+        .classList.add("active");
 }
 
+function closeAdminLogin() {
 
-function slotAlreadyBooked(date, time) {
-
-    return bookings.some(booking =>
-        booking.date === date &&
-        booking.time === time &&
-        booking.status !== "cancelled"
-    );
+    document
+        .getElementById("adminModal")
+        .classList.remove("active");
 }
 
-
-/* -----------------------------
-   CREATE BOOKING
------------------------------ */
-
-function createBooking() {
-
-    const name =
-        document
-            .getElementById("bookingName")
-            .value.trim();
-
+async function adminLogin() {
 
     const email =
         document
-            .getElementById("bookingEmail")
+            .getElementById("adminEmail")
             .value.trim();
 
-
-    const phone =
+    const password =
         document
-            .getElementById("bookingPhone")
-            .value.trim();
-
-
-    const date =
-        document
-            .getElementById("bookingDate")
+            .getElementById("adminPassword")
             .value;
 
-
-    const time =
-        document
-            .getElementById("bookingTime")
-            .value;
-
-
-    const service =
-        document
-            .getElementById("bookingService");
-
-
-    const serviceName =
-        service.options[
-            service.selectedIndex
-        ]?.text || "";
-
-
-    const amount =
-        Number(service.value);
-
-
-    if (
-        !name ||
-        !email ||
-        !phone ||
-        !date ||
-        !time ||
-        !amount
-    ) {
-
-        alert(
-            "Please complete all booking details."
+    const error =
+        document.getElementById(
+            "adminLoginError"
         );
 
-        return;
-    }
-
-
-    if (slotIsUnavailable(date, time)) {
-
-        alert(
-            "This slot has been blocked by CRZ."
-        );
-
-        return;
-    }
-
-
-    if (slotAlreadyBooked(date, time)) {
-
-        alert(
-            "This slot has already been booked."
-        );
-
-        return;
-    }
-
-
-    const booking = {
-
-        id:
-            "CRZ-" +
-            Math.random()
-                .toString(36)
-                .substring(2, 8)
-                .toUpperCase(),
-
-        name,
-
-        email,
-
-        phone,
-
-        date,
-
-        time,
-
-        service: serviceName,
-
-        amount,
-
-        status: "paid",
-
-        created:
-            new Date().toISOString()
-    };
-
-
-    bookings.push(booking);
-
-
-    localStorage.setItem(
-        "crzBookings",
-        JSON.stringify(bookings)
-    );
-
-
-    /*
-       PROTOTYPE PAYMENT
-
-       Replace this later with Razorpay.
-    */
-
-    showPaymentScreen(booking);
-}
-
-
-/* -----------------------------
-   PAYMENT SCREEN
------------------------------ */
-
-function showPaymentScreen(booking) {
-
-    const paymentMethods = [
-
-        "UPI",
-
-        "Credit / Debit Card",
-
-        "Net Banking",
-
-        "Wallets"
-
-    ];
-
-
-    const method =
-        prompt(
-            `CRZ CHECKOUT\n\n` +
-            `Booking: ${booking.id}\n` +
-            `Amount: ₹${booking.amount}\n\n` +
-            `Choose payment method:\n\n` +
-            `1 — UPI\n` +
-            `2 — Card\n` +
-            `3 — Net Banking\n` +
-            `4 — Wallet`
-        );
-
-
-    if (
-        !["1","2","3","4"].includes(method)
-    ) {
-
-        /*
-           If they cancel, restore booking.
-        */
-
-        bookings =
-            bookings.filter(
-                b => b.id !== booking.id
-            );
-
-        localStorage.setItem(
-            "crzBookings",
-            JSON.stringify(bookings)
-        );
-
-        return;
-    }
-
-
-    booking.paymentMethod =
-        paymentMethods[
-            Number(method) - 1
-        ];
-
-
-    localStorage.setItem(
-        "crzBookings",
-        JSON.stringify(bookings)
-    );
-
-
-    alert(
-        `✓ PAYMENT CONFIRMED\n\n` +
-
-        `Booking ID: ${booking.id}\n` +
-
-        `Amount: ₹${booking.amount}\n` +
-
-        `Method: ${booking.paymentMethod}\n\n` +
-
-        `BOOKING CONFIRMED\n\n` +
-
-        `In the production version, CRZ will now send:\n` +
-
-        `📧 Payment confirmed email\n` +
-
-        `📱 Payment confirmed SMS\n` +
-
-        `📧 Booking confirmed email\n` +
-
-        `📱 Booking confirmed SMS`
-    );
-
-
-    updateDashboard();
-}
-
-
-/* -----------------------------
-   TEST NOTIFICATION
------------------------------ */
-
-async function sendTestNotification() {
-
-    const email =
-        document
-            .getElementById("bookingEmail")
-            .value.trim();
-
-
-    const phone =
-        document
-            .getElementById("bookingPhone")
-            .value.trim();
-
-
-    if (!email && !phone) {
-
-        alert(
-            "Enter your email and/or phone number in the booking form first."
-        );
-
-        return;
-    }
-
-
-    /*
-       IMPORTANT:
-
-       This calls your optional backend.
-
-       When you create server.js,
-       change this URL if necessary.
-    */
+    error.textContent = "";
 
     try {
 
         const response =
             await fetch(
-                "http://localhost:5000/api/test-notification",
+                `${API_BASE}/api/admin/login`,
                 {
                     method: "POST",
 
@@ -391,317 +450,132 @@ async function sendTestNotification() {
 
                     body: JSON.stringify({
                         email,
-                        phone
+                        password
                     })
                 }
             );
 
-
-        const data =
+        const result =
             await response.json();
-
 
         if (!response.ok) {
 
             throw new Error(
-                data.error ||
-                "Notification failed"
+                result.error ||
+                "Login failed."
             );
         }
 
-
-        alert(
-            "✓ TEST SENT\n\n" +
-            "Check your email and phone."
+        sessionStorage.setItem(
+            "crzAdminToken",
+            result.token
         );
-
-
-    } catch (error) {
-
-        console.error(error);
-
-        alert(
-            "The notification server isn't running yet.\n\n" +
-
-            "The website itself is working.\n\n" +
-
-            "Start the CRZ notification backend to send real email/SMS."
-        );
-    }
-}
-
-
-/* -----------------------------
-   ADMIN LOGIN
------------------------------ */
-
-function openAdminLogin() {
-
-    document
-        .getElementById("adminModal")
-        .classList.add("show");
-}
-
-
-function closeAdminLogin() {
-
-    document
-        .getElementById("adminModal")
-        .classList.remove("show");
-}
-
-
-function adminLogin() {
-
-    const email =
-        document
-            .getElementById("adminEmail")
-            .value.trim();
-
-
-    const password =
-        document
-            .getElementById("adminPassword")
-            .value;
-
-
-    if (
-        email === ADMIN_EMAIL &&
-        password === ADMIN_PASSWORD
-    ) {
-
-        localStorage.setItem(
-            "crzAdmin",
-            "true"
-        );
-
 
         closeAdminLogin();
 
-
         document
             .getElementById("dashboard")
-            .classList.add("show");
+            .classList.add("active");
 
+        await loadAdminDashboard();
 
-        updateDashboard();
+    } catch (err) {
 
-    } else {
-
-        alert(
-            "Invalid admin credentials."
-        );
+        error.textContent =
+            err.message;
     }
 }
-
-
-/* -----------------------------
-   ADMIN LOGOUT
------------------------------ */
 
 function logoutAdmin() {
 
-    localStorage.removeItem(
-        "crzAdmin"
+    sessionStorage.removeItem(
+        "crzAdminToken"
     );
-
 
     document
         .getElementById("dashboard")
-        .classList.remove("show");
+        .classList.remove("active");
 }
 
+async function loadAdminDashboard() {
 
-/* -----------------------------
-   BLOCK TIME
------------------------------ */
-
-function blockTime() {
-
-    const date =
-        document
-            .getElementById("blockDate")
-            .value;
-
-
-    const time =
-        document
-            .getElementById("blockTime")
-            .value;
-
-
-    const reason =
-        document
-            .getElementById("blockReason")
-            .value.trim();
-
-
-    if (!date || !time) {
-
-        alert(
-            "Select a date and time."
+    const token =
+        sessionStorage.getItem(
+            "crzAdminToken"
         );
 
-        return;
-    }
+    if (!token) return;
 
+    try {
 
-    if (slotAlreadyBooked(date, time)) {
-
-        alert(
-            "A customer has already booked this slot."
-        );
-
-        return;
-    }
-
-
-    const blocked = {
-
-        id:
-            "BLK-" +
-            Date.now(),
-
-        date,
-
-        time,
-
-        reason:
-            reason || "Unavailable"
-    };
-
-
-    blockedSlots.push(blocked);
-
-
-    localStorage.setItem(
-        "crzBlocked",
-        JSON.stringify(blockedSlots)
-    );
-
-
-    document
-        .getElementById("blockReason")
-        .value = "";
-
-
-    updateDashboard();
-
-
-    alert(
-        "✓ Time slot blocked."
-    );
-}
-
-
-/* -----------------------------
-   REMOVE BLOCK
------------------------------ */
-
-function removeBlock(id) {
-
-    blockedSlots =
-        blockedSlots.filter(
-            slot => slot.id !== id
-        );
-
-
-    localStorage.setItem(
-        "crzBlocked",
-        JSON.stringify(blockedSlots)
-    );
-
-
-    updateDashboard();
-}
-
-
-/* -----------------------------
-   DASHBOARD
------------------------------ */
-
-function updateDashboard() {
-
-    const today =
-        new Date()
-            .toISOString()
-            .split("T")[0];
-
-
-    const todayBookings =
-        bookings.filter(
-            b => b.date === today
-        );
-
-
-    const futureBookings =
-        bookings.filter(
-            b => b.date > today
-        );
-
-
-    const completed =
-        bookings.filter(
-            b => b.status === "completed"
-        );
-
-
-    const revenue =
-        bookings
-            .filter(
-                b => b.status !== "cancelled"
-            )
-            .reduce(
-                (sum,b) =>
-                    sum + Number(b.amount),
-                0
+        const response =
+            await fetch(
+                `${API_BASE}/api/admin/dashboard`,
+                {
+                    headers: {
+                        Authorization:
+                            `Bearer ${token}`
+                    }
+                }
             );
 
+        const result =
+            await response.json();
 
-    document
-        .getElementById("todayCount")
-        .textContent =
-            todayBookings.length;
+        if (!response.ok) {
 
+            throw new Error(
+                result.error ||
+                "Unable to load dashboard."
+            );
+        }
 
-    document
-        .getElementById("futureCount")
-        .textContent =
-            futureBookings.length;
+        renderBookings(
+            result.bookings
+        );
 
+        renderBlockedSlots(
+            result.blockedSlots
+        );
 
-    document
-        .getElementById("completedCount")
-        .textContent =
-            completed.length;
+        document.getElementById(
+            "todayCount"
+        ).textContent =
+            result.stats.today;
 
+        document.getElementById(
+            "futureCount"
+        ).textContent =
+            result.stats.future;
 
-    document
-        .getElementById("revenue")
-        .textContent =
-            `₹${revenue.toLocaleString("en-IN")}`;
+        document.getElementById(
+            "completedCount"
+        ).textContent =
+            result.stats.completed;
 
+        document.getElementById(
+            "revenue"
+        ).textContent =
+            `₹${Number(
+                result.stats.revenue
+            ).toLocaleString("en-IN")}`;
 
-    renderBookings();
+    } catch (error) {
 
-    renderBlocked();
+        showToast(error.message);
+    }
 }
 
+function renderBookings(bookings) {
 
-/* -----------------------------
-   RENDER BOOKINGS
------------------------------ */
-
-function renderBookings() {
-
-    const container =
-        document
-            .getElementById("bookingList");
-
+    const list =
+        document.getElementById(
+            "bookingList"
+        );
 
     if (!bookings.length) {
 
-        container.innerHTML =
+        list.innerHTML =
             `<p class="empty">
                 No bookings yet.
             </p>`;
@@ -709,70 +583,60 @@ function renderBookings() {
         return;
     }
 
+    list.innerHTML =
+        bookings.map(booking => `
 
-    container.innerHTML =
-        bookings
-            .slice()
-            .reverse()
-            .map(booking => `
+            <div class="admin-booking">
 
-                <div class="booking-row">
+                <strong>
+                    ${escapeHTML(booking.name)}
+                </strong>
 
-                    <div>
+                <span>
+                    ${escapeHTML(booking.date)}
+                    ·
+                    ${escapeHTML(booking.time)}
+                </span>
 
-                        <strong>
-                            ${escapeHTML(booking.name)}
-                        </strong>
+                <span>
+                    ${escapeHTML(booking.email)}
+                </span>
 
-                        <small>
-                            ${escapeHTML(booking.date)}
-                            ·
-                            ${escapeHTML(booking.time)}
-                        </small>
+                <span>
+                    ${escapeHTML(booking.phone)}
+                </span>
 
-                        <small>
-                            ${escapeHTML(booking.service)}
-                        </small>
+                <span>
+                    ${escapeHTML(booking.serviceName)}
+                </span>
 
-                        <small>
-                            ${escapeHTML(booking.email)}
-                        </small>
+                <strong>
+                    ₹${Number(
+                        booking.total
+                    ).toLocaleString("en-IN")}
+                </strong>
 
-                    </div>
+                <span class="booking-status">
+                    ${escapeHTML(
+                        booking.status
+                    )}
+                </span>
 
-                    <div>
+            </div>
 
-                        <div class="booking-status">
-                            ${booking.status.toUpperCase()}
-                        </div>
-
-                        <small>
-                            ₹${booking.amount}
-                        </small>
-
-                    </div>
-
-                </div>
-
-            `)
-            .join("");
+        `).join("");
 }
 
+function renderBlockedSlots(slots) {
 
-/* -----------------------------
-   RENDER BLOCKED
------------------------------ */
+    const list =
+        document.getElementById(
+            "blockedList"
+        );
 
-function renderBlocked() {
+    if (!slots.length) {
 
-    const container =
-        document
-            .getElementById("blockedList");
-
-
-    if (!blockedSlots.length) {
-
-        container.innerHTML =
+        list.innerHTML =
             `<p class="empty">
                 No blocked slots.
             </p>`;
@@ -780,132 +644,211 @@ function renderBlocked() {
         return;
     }
 
+    list.innerHTML =
+        slots.map(slot => `
 
-    container.innerHTML =
-        blockedSlots
-            .slice()
-            .reverse()
-            .map(slot => `
+            <div class="blocked-item">
 
-                <div class="blocked-item">
+                <div>
+                    <strong>
+                        ${escapeHTML(slot.date)}
+                    </strong>
 
-                    <div>
+                    <br>
 
-                        <strong>
-                            ${escapeHTML(slot.date)}
-                        </strong>
-
-                        <br>
-
+                    <small>
                         ${escapeHTML(slot.time)}
+                    </small>
 
-                        <br>
+                    <br>
 
-                        <span style="color:#777">
-                            ${escapeHTML(slot.reason)}
-                        </span>
-
-                    </div>
-
-                    <button
-                        onclick="removeBlock('${slot.id}')"
-                    >
-                        REMOVE
-                    </button>
-
+                    <small>
+                        ${escapeHTML(
+                            slot.reason || "Blocked"
+                        )}
+                    </small>
                 </div>
 
-            `)
-            .join("");
+                <button
+                    onclick="unblockTime('${slot.id}')"
+                >
+                    UNBLOCK
+                </button>
+
+            </div>
+
+        `).join("");
 }
 
+async function blockTime() {
 
-/* -----------------------------
-   CLEAR BOOKINGS
------------------------------ */
+    const token =
+        sessionStorage.getItem(
+            "crzAdminToken"
+        );
 
-function clearBookings() {
+    if (!token) {
 
-    if (
-        !confirm(
-            "Delete all prototype bookings?"
-        )
-    ) return;
+        showToast(
+            "Admin login required."
+        );
 
+        return;
+    }
 
-    bookings = [];
+    const date =
+        document
+            .getElementById("blockDate")
+            .value;
 
+    const time =
+        document
+            .getElementById("blockTime")
+            .value;
 
-    localStorage.removeItem(
-        "crzBookings"
-    );
+    const reason =
+        document
+            .getElementById("blockReason")
+            .value.trim();
 
+    if (!date || !time) {
 
-    updateDashboard();
+        showToast(
+            "Select a date and time."
+        );
+
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_BASE}/api/admin/block-slot`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        Authorization:
+                            `Bearer ${token}`
+                    },
+
+                    body: JSON.stringify({
+                        date,
+                        time,
+                        reason
+                    })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                result.error ||
+                "Unable to block slot."
+            );
+        }
+
+        document
+            .getElementById("blockReason")
+            .value = "";
+
+        showToast(
+            "Slot blocked successfully."
+        );
+
+        await loadAdminDashboard();
+
+    } catch (error) {
+
+        showToast(error.message);
+    }
 }
 
+async function unblockTime(id) {
 
-/* -----------------------------
-   SECURITY HELPER
------------------------------ */
+    const token =
+        sessionStorage.getItem(
+            "crzAdminToken"
+        );
+
+    if (!confirm(
+        "Unblock this time slot?"
+    )) return;
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_BASE}/api/admin/unblock-slot`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        Authorization:
+                            `Bearer ${token}`
+                    },
+
+                    body: JSON.stringify({
+                        id
+                    })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                result.error ||
+                "Unable to unblock slot."
+            );
+        }
+
+        showToast(
+            "Slot unblocked."
+        );
+
+        await loadAdminDashboard();
+
+    } catch (error) {
+
+        showToast(error.message);
+    }
+}
+
+function showToast(message) {
+
+    const toast =
+        document.getElementById(
+            "toast"
+        );
+
+    toast.textContent = message;
+
+    toast.classList.add("show");
+
+    setTimeout(() => {
+        toast.classList.remove("show");
+    }, 3500);
+}
 
 function escapeHTML(value) {
 
-    return String(value)
+    return String(value ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
-}
-
-
-/* -----------------------------
-   INITIALISE
------------------------------ */
-
-if (
-    localStorage.getItem("crzAdmin") === "true"
-) {
-
-    document
-        .getElementById("dashboard")
-        .classList.add("show");
-
-    updateDashboard();
-}
-
-
-updateTotal();
-
-async function sendTestNotification() {
-
-    if (
-        typeof window.requestCRZNotifications !==
-        "function"
-    ) {
-        alert("Notification system is not loaded.");
-        return;
-    }
-
-    await window.requestCRZNotifications();
-
-    if (window.crzNotificationToken) {
-
-        alert(
-            "CRZ notifications are enabled on this device!"
-        );
-
-        console.log(
-            "FCM TOKEN:",
-            window.crzNotificationToken
-        );
-
-    } else {
-
-        alert(
-            "Notifications were not enabled."
-        );
-
-    }
 }
