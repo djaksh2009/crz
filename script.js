@@ -877,3 +877,35 @@ if (
 
 
 updateTotal();
+
+async function sendTestNotification() {
+
+    if (
+        typeof window.requestCRZNotifications !==
+        "function"
+    ) {
+        alert("Notification system is not loaded.");
+        return;
+    }
+
+    await window.requestCRZNotifications();
+
+    if (window.crzNotificationToken) {
+
+        alert(
+            "CRZ notifications are enabled on this device!"
+        );
+
+        console.log(
+            "FCM TOKEN:",
+            window.crzNotificationToken
+        );
+
+    } else {
+
+        alert(
+            "Notifications were not enabled."
+        );
+
+    }
+}
