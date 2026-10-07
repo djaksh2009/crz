@@ -21,42 +21,68 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     origin: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: [
+      "GET",
+      "POST",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization"
+    ]
   })
 );
 
 app.use(express.json());
 
 /* =====================================================
-   DATA STORAGE
+   DATA
 ===================================================== */
 
-const DATA_DIR = path.join(__dirname, "data");
+const DATA_DIR = path.join(
+  __dirname,
+  "data"
+);
 
 if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.mkdirSync(DATA_DIR, {
+    recursive: true
+  });
 }
 
-const BOOKINGS_FILE = path.join(DATA_DIR, "bookings.json");
-const BLOCKED_FILE = path.join(DATA_DIR, "blocked.json");
+const BOOKINGS_FILE = path.join(
+  DATA_DIR,
+  "bookings.json"
+);
 
-function ensureFile(file, fallback = []) {
+const BLOCKED_FILE = path.join(
+  DATA_DIR,
+  "blocked.json"
+);
+
+function ensureFile(file) {
   if (!fs.existsSync(file)) {
     fs.writeFileSync(
       file,
-      JSON.stringify(fallback, null, 2),
+      "[]",
       "utf8"
     );
   }
 }
 
-ensureFile(BOOKINGS_FILE, []);
-ensureFile(BLOCKED_FILE, []);
+ensureFile(BOOKINGS_FILE);
+ensureFile(BLOCKED_FILE);
 
 function readJSON(file) {
   try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
+    return JSON.parse(
+      fs.readFileSync(
+        file,
+        "utf8"
+      )
+    );
   } catch {
     return [];
   }
@@ -65,7 +91,11 @@ function readJSON(file) {
 function writeJSON(file, data) {
   fs.writeFileSync(
     file,
-    JSON.stringify(data, null, 2),
+    JSON.stringify(
+      data,
+      null,
+      2
+    ),
     "utf8"
   );
 }
@@ -74,10 +104,14 @@ function writeJSON(file, data) {
    HELPERS
 ===================================================== */
 
-function generateId(prefix = "crz") {
-  return `${prefix}_${Date.now()}_${crypto
-    .randomBytes(4)
-    .toString("hex")}`;
+function generateId(prefix) {
+  return (
+    `${prefix}_` +
+    `${Date.now()}_` +
+    crypto
+      .randomBytes(4)
+      .toString("hex")
+  );
 }
 
 function slotId(date, time) {
@@ -87,8 +121,9 @@ function slotId(date, time) {
   );
 }
 
-function adminToken(req) {
-  const auth = req.headers.authorization || "";
+function getAdminToken(req) {
+  const auth =
+    req.headers.authorization || "";
 
   if (!auth.startsWith("Bearer ")) {
     return null;
@@ -98,19 +133,36 @@ function adminToken(req) {
 }
 
 function checkAdmin(req, res, next) {
-  const token = adminToken(req);
+  const token =
+    getAdminToken(req);
 
   if (
     !token ||
-    token !== process.env.ADMIN_TOKEN
+    token !==
+      process.env.ADMIN_TOKEN
   ) {
     return res.status(401).json({
-      error: "Unauthorized.",
+      error: "Unauthorized."
     });
   }
 
   next();
 }
+
+/* =====================================================
+   HEALTH
+===================================================== */
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "online",
+    message:
+      "CRZ backend is working 🚀",
+    firebase: false,
+    razorpay: false,
+    payments: false
+  });
+});
 
 /* =====================================================
    SERVICES
@@ -120,275 +172,351 @@ const SERVICES = {
   "250": {
     id: 250,
     name: "Practice",
-    price: 250,
+    price: 250
   },
 
   "400": {
     id: 400,
     name: "Practice + Audio",
-    price: 400,
+    price: 400
   },
 
   "500": {
     id: 500,
-    name: "Practice + Audio + Video",
-    price: 500,
+    name:
+      "Practice + Audio + Video",
+    price: 500
   },
 
   "1500": {
     id: 1500,
     name: "Edited Recording",
-    price: 1500,
-  },
+    price: 1500
+  }
 };
 
-app.get("/api/services", (req, res) => {
-  res.json({
-    services: Object.values(SERVICES),
-  });
-});
+app.get(
+  "/api/services",
+  (req, res) => {
+    res.json({
+      services:
+        Object.values(SERVICES)
+    });
+  }
+);
 
 /* =====================================================
    AVAILABILITY
 ===================================================== */
 
-function getAvailability(date) {
-  const bookings = readJSON(BOOKINGS_FILE);
-  const blocked = readJSON(BLOCKED_FILE);
+function buildAvailability(date) {
+  const bookings =
+    readJSON(BOOKINGS_FILE);
 
-  const bookedSlots = bookings
-    .filter(
-      (booking) =>
-        booking.date === date &&
-        booking.status !== "cancelled"
-    )
-    .map((booking) => ({
-      time: booking.time,
-      bookingId: booking.id,
-    }));
+  const blocked =
+    readJSON(BLOCKED_FILE);
 
-  const blockedSlots = blocked
-    .filter((slot) => slot.date === date)
-    .map((slot) => ({
-      time: slot.time,
-      id: slot.id,
-      reason: slot.reason,
-    }));
+  const bookedSlots =
+    bookings
+      .filter(
+        booking =>
+          booking.date === date &&
+          booking.status !==
+            "cancelled"
+      )
+      .map(booking => ({
+        time: booking.time,
+        bookingId: booking.id
+      }));
+
+  const blockedSlots =
+    blocked
+      .filter(
+        slot =>
+          slot.date === date
+      )
+      .map(slot => ({
+        id: slot.id,
+        time: slot.time,
+        reason: slot.reason
+      }));
 
   return {
     date,
+
     bookedSlots,
     blockedSlots,
 
-    // Compatibility with older frontend code
+    // Compatibility
     bookings: bookedSlots,
-    blocked: blockedSlots,
+    blocked: blockedSlots
   };
 }
 
-/*
-   Supports BOTH:
+/* GET availability */
 
-   GET  /api/availability?date=2026-10-08
-   POST /api/availability
-*/
+app.get(
+  "/api/availability",
+  (req, res) => {
+    try {
+      const { date } =
+        req.query;
 
-app.get("/api/availability", (req, res) => {
-  try {
-    const { date } = req.query;
+      if (!date) {
+        return res.status(400).json({
+          error:
+            "Date is required."
+        });
+      }
 
-    if (!date) {
-      return res.status(400).json({
-        error: "Date is required.",
+      res.json(
+        buildAvailability(date)
+      );
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error:
+          "Unable to load availability."
       });
     }
-
-    res.json(getAvailability(date));
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      error: "Unable to load availability.",
-    });
   }
-});
+);
 
-app.post("/api/availability", (req, res) => {
-  try {
-    const { date } = req.body;
+/* POST availability */
 
-    if (!date) {
-      return res.status(400).json({
-        error: "Date is required.",
+app.post(
+  "/api/availability",
+  (req, res) => {
+    try {
+      const { date } =
+        req.body;
+
+      if (!date) {
+        return res.status(400).json({
+          error:
+            "Date is required."
+        });
+      }
+
+      res.json(
+        buildAvailability(date)
+      );
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error:
+          "Unable to load availability."
       });
     }
-
-    res.json(getAvailability(date));
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      error: "Unable to load availability.",
-    });
   }
-});
+);
 
 /* =====================================================
    CREATE BOOKING
 ===================================================== */
 
-app.post("/api/bookings", (req, res) => {
-  try {
-    const {
-      name,
-      email,
-      phone,
-      date,
-      time,
-      service,
-      serviceId,
-      serviceName,
-      notes,
-    } = req.body;
-
-    if (
-      !name ||
-      !email ||
-      !phone ||
-      !date ||
-      !time
-    ) {
-      return res.status(400).json({
-        error:
-          "Name, email, phone, date and time are required.",
-      });
-    }
-
-    const selectedService =
-      serviceId ||
-      service ||
-      "250";
-
-    const serviceInfo =
-      SERVICES[String(selectedService)];
-
-    if (!serviceInfo) {
-      return res.status(400).json({
-        error: "Invalid service.",
-      });
-    }
-
-    const bookings = readJSON(BOOKINGS_FILE);
-    const blocked = readJSON(BLOCKED_FILE);
-
-    const alreadyBooked = bookings.some(
-      (booking) =>
-        booking.date === date &&
-        booking.time === time &&
-        booking.status !== "cancelled"
-    );
-
-    if (alreadyBooked) {
-      return res.status(409).json({
-        error:
-          "That time slot is already booked.",
-      });
-    }
-
-    const isBlocked = blocked.some(
-      (slot) =>
-        slot.date === date &&
-        slot.time === time
-    );
-
-    if (isBlocked) {
-      return res.status(409).json({
-        error:
-          "That time slot is blocked.",
-      });
-    }
-
-    const booking = {
-      id: generateId("booking"),
-
-      name: String(name).trim(),
-      email: String(email).trim(),
-      phone: String(phone).trim(),
-
-      date,
-      time,
-
-      service: serviceInfo.id,
-
-      serviceName:
-        serviceName || serviceInfo.name,
-
-      total: serviceInfo.price,
-
-      notes:
+app.post(
+  "/api/bookings",
+  (req, res) => {
+    try {
+      const {
+        name,
+        email,
+        phone,
+        date,
+        time,
+        service,
+        serviceId,
+        serviceName,
         notes
-          ? String(notes).trim()
-          : "",
+      } = req.body;
 
-      status: "confirmed",
+      if (
+        !name ||
+        !email ||
+        !phone ||
+        !date ||
+        !time
+      ) {
+        return res.status(400).json({
+          error:
+            "Name, email, phone, date and time are required."
+        });
+      }
 
-      createdAt:
-        new Date().toISOString(),
-    };
+      const selectedService =
+        String(
+          serviceId ||
+          service ||
+          "250"
+        );
 
-    bookings.push(booking);
+      const serviceInfo =
+        SERVICES[
+          selectedService
+        ];
 
-    writeJSON(
-      BOOKINGS_FILE,
-      bookings
-    );
+      if (!serviceInfo) {
+        return res.status(400).json({
+          error:
+            "Invalid service."
+        });
+      }
 
-    return res.status(201).json({
-      success: true,
-      booking,
-      bookingId: booking.id,
-    });
-  } catch (error) {
-    console.error(error);
+      const bookings =
+        readJSON(
+          BOOKINGS_FILE
+        );
 
-    res.status(500).json({
-      error:
-        "Unable to create booking.",
-    });
+      const blocked =
+        readJSON(
+          BLOCKED_FILE
+        );
+
+      /* duplicate booking */
+
+      const alreadyBooked =
+        bookings.some(
+          booking =>
+            booking.date ===
+              date &&
+            booking.time ===
+              time &&
+            booking.status !==
+              "cancelled"
+        );
+
+      if (alreadyBooked) {
+        return res.status(409).json({
+          error:
+            "That time slot is already booked."
+        });
+      }
+
+      /* blocked slot */
+
+      const isBlocked =
+        blocked.some(
+          slot =>
+            slot.date === date &&
+            slot.time === time
+        );
+
+      if (isBlocked) {
+        return res.status(409).json({
+          error:
+            "That time slot is blocked."
+        });
+      }
+
+      const booking = {
+        id: generateId(
+          "booking"
+        ),
+
+        name:
+          String(name).trim(),
+
+        email:
+          String(email).trim(),
+
+        phone:
+          String(phone).trim(),
+
+        date,
+        time,
+
+        service:
+          serviceInfo.id,
+
+        serviceName:
+          serviceName ||
+          serviceInfo.name,
+
+        total:
+          serviceInfo.price,
+
+        notes:
+          notes
+            ? String(notes).trim()
+            : "",
+
+        status:
+          "confirmed",
+
+        createdAt:
+          new Date().toISOString()
+      };
+
+      bookings.push(
+        booking
+      );
+
+      writeJSON(
+        BOOKINGS_FILE,
+        bookings
+      );
+
+      res.status(201).json({
+        success: true,
+        bookingId:
+          booking.id,
+        booking
+      });
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error:
+          "Unable to create booking."
+      });
+    }
   }
-});
+);
 
 /* =====================================================
    GET BOOKING
 ===================================================== */
 
-app.get("/api/bookings/:id", (req, res) => {
-  try {
-    const bookings = readJSON(BOOKINGS_FILE);
+app.get(
+  "/api/bookings/:id",
+  (req, res) => {
+    try {
+      const bookings =
+        readJSON(
+          BOOKINGS_FILE
+        );
 
-    const booking = bookings.find(
-      (item) => item.id === req.params.id
-    );
+      const booking =
+        bookings.find(
+          item =>
+            item.id ===
+            req.params.id
+        );
 
-    if (!booking) {
-      return res.status(404).json({
-        error: "Booking not found.",
+      if (!booking) {
+        return res.status(404).json({
+          error:
+            "Booking not found."
+        });
+      }
+
+      res.json({
+        success: true,
+        booking
+      });
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error:
+          "Unable to find booking."
       });
     }
-
-    res.json({
-      success: true,
-      booking,
-    });
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      error:
-        "Unable to find booking.",
-    });
   }
-});
+);
 
 /* =====================================================
    CANCEL BOOKING
@@ -398,26 +526,30 @@ app.post(
   "/api/bookings/:id/cancel",
   (req, res) => {
     try {
-      const bookings = readJSON(
-        BOOKINGS_FILE
-      );
+      const bookings =
+        readJSON(
+          BOOKINGS_FILE
+        );
 
-      const index = bookings.findIndex(
-        (booking) =>
-          booking.id === req.params.id
-      );
+      const index =
+        bookings.findIndex(
+          booking =>
+            booking.id ===
+            req.params.id
+        );
 
       if (index === -1) {
         return res.status(404).json({
           error:
-            "Booking not found.",
+            "Booking not found."
         });
       }
 
       bookings[index].status =
         "cancelled";
 
-      bookings[index].cancelledAt =
+      bookings[index]
+        .cancelledAt =
         new Date().toISOString();
 
       writeJSON(
@@ -427,14 +559,15 @@ app.post(
 
       res.json({
         success: true,
-        booking: bookings[index],
+        booking:
+          bookings[index]
       });
     } catch (error) {
       console.error(error);
 
       res.status(500).json({
         error:
-          "Unable to cancel booking.",
+          "Unable to cancel booking."
       });
     }
   }
@@ -449,7 +582,7 @@ app.post(
   (req, res) => {
     const {
       email,
-      password,
+      password
     } = req.body;
 
     if (
@@ -460,14 +593,28 @@ app.post(
     ) {
       return res.status(401).json({
         error:
-          "Invalid email or password.",
+          "Invalid email or password."
       });
     }
 
     res.json({
       success: true,
       token:
-        process.env.ADMIN_TOKEN,
+        process.env.ADMIN_TOKEN
+    });
+  }
+);
+
+/* =====================================================
+   ADMIN CHECK
+===================================================== */
+
+app.get(
+  "/api/admin/check",
+  checkAdmin,
+  (req, res) => {
+    res.json({
+      success: true
     });
   }
 );
@@ -482,10 +629,14 @@ app.get(
   (req, res) => {
     try {
       const bookings =
-        readJSON(BOOKINGS_FILE);
+        readJSON(
+          BOOKINGS_FILE
+        );
 
       const blockedSlots =
-        readJSON(BLOCKED_FILE);
+        readJSON(
+          BLOCKED_FILE
+        );
 
       const today =
         new Date()
@@ -494,27 +645,30 @@ app.get(
 
       const confirmed =
         bookings.filter(
-          (booking) =>
+          booking =>
             booking.status ===
             "confirmed"
         );
 
       const todayCount =
         confirmed.filter(
-          (booking) =>
-            booking.date === today
+          booking =>
+            booking.date ===
+            today
         ).length;
 
       const futureCount =
         confirmed.filter(
-          (booking) =>
-            booking.date > today
+          booking =>
+            booking.date >
+            today
         ).length;
 
       const completedCount =
         confirmed.filter(
-          (booking) =>
-            booking.date < today
+          booking =>
+            booking.date <
+            today
         ).length;
 
       const revenue =
@@ -534,26 +688,31 @@ app.get(
         blockedSlots,
 
         stats: {
-          today: todayCount,
-          future: futureCount,
+          today:
+            todayCount,
+
+          future:
+            futureCount,
+
           completed:
             completedCount,
-          revenue,
-        },
+
+          revenue
+        }
       });
     } catch (error) {
       console.error(error);
 
       res.status(500).json({
         error:
-          "Dashboard failed.",
+          "Dashboard failed."
       });
     }
   }
 );
 
 /* =====================================================
-   ADMIN UPDATE BOOKING STATUS
+   ADMIN UPDATE BOOKING
 ===================================================== */
 
 app.patch(
@@ -562,32 +721,32 @@ app.patch(
   (req, res) => {
     try {
       const {
-        status,
+        status
       } = req.body;
 
-      const allowedStatuses = [
+      const allowed = [
         "confirmed",
         "cancelled",
-        "completed",
+        "completed"
       ];
 
       if (
-        !allowedStatuses.includes(
-          status
-        )
+        !allowed.includes(status)
       ) {
         return res.status(400).json({
           error:
-            "Invalid booking status.",
+            "Invalid booking status."
         });
       }
 
       const bookings =
-        readJSON(BOOKINGS_FILE);
+        readJSON(
+          BOOKINGS_FILE
+        );
 
       const index =
         bookings.findIndex(
-          (booking) =>
+          booking =>
             booking.id ===
             req.params.id
         );
@@ -595,7 +754,7 @@ app.patch(
       if (index === -1) {
         return res.status(404).json({
           error:
-            "Booking not found.",
+            "Booking not found."
         });
       }
 
@@ -613,21 +772,21 @@ app.patch(
       res.json({
         success: true,
         booking:
-          bookings[index],
+          bookings[index]
       });
     } catch (error) {
       console.error(error);
 
       res.status(500).json({
         error:
-          "Unable to update booking.",
+          "Unable to update booking."
       });
     }
   }
 );
 
 /* =====================================================
-   BLOCK SLOT
+   ADMIN BLOCK SLOT
 ===================================================== */
 
 app.post(
@@ -638,27 +797,33 @@ app.post(
       const {
         date,
         time,
-        reason,
+        reason
       } = req.body;
 
       if (!date || !time) {
         return res.status(400).json({
           error:
-            "Date and time required.",
+            "Date and time required."
         });
       }
 
       const bookings =
-        readJSON(BOOKINGS_FILE);
+        readJSON(
+          BOOKINGS_FILE
+        );
 
       const blocked =
-        readJSON(BLOCKED_FILE);
+        readJSON(
+          BLOCKED_FILE
+        );
 
       const alreadyBooked =
         bookings.some(
-          (booking) =>
-            booking.date === date &&
-            booking.time === time &&
+          booking =>
+            booking.date ===
+              date &&
+            booking.time ===
+              time &&
             booking.status !==
               "cancelled"
         );
@@ -666,13 +831,13 @@ app.post(
       if (alreadyBooked) {
         return res.status(409).json({
           error:
-            "This slot already has a booking.",
+            "This slot already has a booking."
         });
       }
 
       const alreadyBlocked =
         blocked.some(
-          (slot) =>
+          slot =>
             slot.date === date &&
             slot.time === time
         );
@@ -680,12 +845,15 @@ app.post(
       if (alreadyBlocked) {
         return res.status(409).json({
           error:
-            "This slot is already blocked.",
+            "This slot is already blocked."
         });
       }
 
       const slot = {
-        id: slotId(date, time),
+        id: slotId(
+          date,
+          time
+        ),
 
         date,
         time,
@@ -695,7 +863,7 @@ app.post(
           "Blocked by admin",
 
         createdAt:
-          new Date().toISOString(),
+          new Date().toISOString()
       };
 
       blocked.push(slot);
@@ -707,21 +875,21 @@ app.post(
 
       res.json({
         success: true,
-        slot,
+        slot
       });
     } catch (error) {
       console.error(error);
 
       res.status(500).json({
         error:
-          "Unable to block slot.",
+          "Unable to block slot."
       });
     }
   }
 );
 
 /* =====================================================
-   UNBLOCK SLOT
+   ADMIN UNBLOCK SLOT
 ===================================================== */
 
 app.post(
@@ -735,94 +903,72 @@ app.post(
       if (!id) {
         return res.status(400).json({
           error:
-            "Slot ID required.",
+            "Slot ID required."
         });
       }
 
       const blocked =
-        readJSON(BLOCKED_FILE);
+        readJSON(
+          BLOCKED_FILE
+        );
 
-      const filtered =
+      const updated =
         blocked.filter(
-          (slot) =>
+          slot =>
             slot.id !== id
         );
 
       if (
-        filtered.length ===
+        updated.length ===
         blocked.length
       ) {
         return res.status(404).json({
           error:
-            "Blocked slot not found.",
+            "Blocked slot not found."
         });
       }
 
       writeJSON(
         BLOCKED_FILE,
-        filtered
+        updated
       );
 
       res.json({
-        success: true,
+        success: true
       });
     } catch (error) {
       console.error(error);
 
       res.status(500).json({
         error:
-          "Unable to unblock slot.",
+          "Unable to unblock slot."
       });
     }
   }
 );
 
 /* =====================================================
-   TEST ADMIN AUTH
+   404
 ===================================================== */
 
-app.get(
-  "/api/admin/check",
-  checkAdmin,
+app.use(
   (req, res) => {
-    res.json({
-      success: true,
-      message:
-        "Admin authentication working.",
+    res.status(404).json({
+      error:
+        "Route not found."
     });
   }
 );
 
 /* =====================================================
-   HEALTH
-===================================================== */
-
-app.get("/", (req, res) => {
-  res.json({
-    status: "online",
-    message:
-      "CRZ backend is working 🚀",
-    paymentSystem: false,
-    firebase: false,
-  });
-});
-
-/* =====================================================
-   404
-===================================================== */
-
-app.use((req, res) => {
-  res.status(404).json({
-    error: "Route not found.",
-  });
-});
-
-/* =====================================================
    START
 ===================================================== */
 
-app.listen(PORT, () => {
-  console.log(
-    `CRZ backend running on http://localhost:${PORT}`
-  );
-});
+app.listen(
+  PORT,
+  () => {
+    console.log(
+      `CRZ backend running on http://localhost:${PORT}`
+    );
+  }
+);
